@@ -11,12 +11,15 @@
       "infoPlist": {
         "UIBackgroundModes": [
           "location",
+          "fetch",
+          "location",
           "fetch"
         ],
         "NSLocationUsageDescription": "We need your location to track your vehicle in real-time.",
         "NSLocationWhenInUseUsageDescription": "We need your location to track your vehicle in real-time.",
         "NSLocationAlwaysAndWhenInUseUsageDescription": "We need your location even when the app is in the background to continuously track your vehicle."
-      }
+      },
+      "bundleIdentifier": "com.anonymous.opentracker"
     },
     "android": {
       "adaptiveIcon": {
@@ -30,9 +33,15 @@
         "ACCESS_COARSE_LOCATION",
         "ACCESS_BACKGROUND_LOCATION",
         "FOREGROUND_SERVICE",
-        "FOREGROUND_SERVICE_LOCATION"
+        "FOREGROUND_SERVICE_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_BACKGROUND_LOCATION",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_LOCATION"
       ],
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.anonymous.opentracker"
     },
     "web": {
       "favicon": "./assets/favicon.png"
