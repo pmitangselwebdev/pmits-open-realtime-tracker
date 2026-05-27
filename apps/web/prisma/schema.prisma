@@ -1,0 +1,49 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String    @id @default(cuid())
+  email     String    @unique
+  name      String
+  password  String
+  createdAt DateTime  @default(now())
+  vehicles  Vehicle[]
+}
+
+model Vehicle {
+  id        String     @id @default(cuid())
+  name      String
+  plate     String
+  uniqueId  String     @unique
+  userId    String
+  user      User       @relation(fields: [userId], references: [id])
+  icon      String?
+  color     String?    @default("#3b82f6")
+  createdAt DateTime   @default(now())
+  locations Location[]
+
+  @@index([userId])
+  @@index([uniqueId])
+}
+
+model Location {
+  id        String   @id @default(cuid())
+  vehicleId String
+  vehicle   Vehicle  @relation(fields: [vehicleId], references: [id])
+  lat       Float
+  lng       Float
+  speed     Float?
+  heading   Float?
+  accuracy  Float?
+  battery   Float?
+  timestamp DateTime @default(now())
+
+  @@index([vehicleId, timestamp])
+  @@index([timestamp])
+}
