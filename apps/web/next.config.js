@@ -2,7 +2,7 @@
 const nextConfig = {
   output: process.env.VERCEL ? undefined : process.env.NODE_ENV === "production" ? "standalone" : undefined,
   transpilePackages: ["shared"],
-  serverExternalPackages: ["@prisma/client", "bcrypt"],
+  serverComponentsExternalPackages: ["@prisma/client", "bcrypt"],
 }
 
 const sentryDsn = process.env.NEXT_PUBLIC_SENTRY_DSN

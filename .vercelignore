@@ -1,0 +1,6 @@
+apps/mobile
+prisma/seed.ts
+docker-compose.yml
+CONTEXT.md
+MANUAL.md
+skills.md
