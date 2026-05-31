@@ -11,6 +11,8 @@ function getKey(identifier: string, route: string): string {
   return `ratelimit:${route}:${identifier}`
 }
 
+const isServerless = process.env.VERCEL === "1"
+
 export async function checkRateLimit(
   identifier: string,
   route: string,
@@ -38,6 +40,11 @@ export async function checkRateLimit(
   )
 
   if (result) return result
+
+  if (isServerless && !process.env.REDIS_URL) {
+    console.warn("Rate limiting disabled: Redis required on Vercel but REDIS_URL not set")
+    return { allowed: true, remaining: config.maxRequests, resetAt: now + config.interval }
+  }
 
   let entry = inMemory.get(key)
   if (!entry || now > entry.resetAt) {
