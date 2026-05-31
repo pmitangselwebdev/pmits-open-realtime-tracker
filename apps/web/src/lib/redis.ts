@@ -1,40 +1,27 @@
-import { Redis } from "ioredis"
+const globalForKv = globalThis as unknown as { kv: import("@vercel/kv").VercelKV | null }
 
-const globalForRedis = globalThis as unknown as { redis: Redis | null }
-
-function createRedis() {
-  const url = process.env.REDIS_URL
-  if (!url) {
-    console.warn("REDIS_URL not set — Redis features disabled")
+function createKv() {
+  try {
+    const { createClient } = require("@vercel/kv")
+    const url = process.env.KV_URL || process.env.REDIS_URL
+    if (!url) return null
+    return createClient({ url })
+  } catch {
     return null
   }
-  const client = new Redis(url, {
-    maxRetriesPerRequest: 3,
-    retryStrategy: (times) => {
-      if (times > 3) return null
-      return Math.min(times * 200, 2000)
-    },
-    lazyConnect: true,
-  })
-
-  client.on("error", (_err) => {
-    console.warn("Redis connection error")
-  })
-
-  return client
 }
 
-export const redis = globalForRedis.redis ?? createRedis()
+export const kv = globalForKv.kv ?? createKv()
 
-if (process.env.NODE_ENV !== "production") globalForRedis.redis = redis
+if (process.env.NODE_ENV !== "production") globalForKv.kv = kv
 
 export async function withRedis<T>(
-  fn: (client: Redis) => Promise<T>,
+  fn: (client: NonNullable<typeof kv>) => Promise<T>,
   fallback: T
 ): Promise<T> {
-  if (!redis) return fallback
+  if (!kv) return fallback
   try {
-    return await fn(redis)
+    return await fn(kv)
   } catch {
     return fallback
   }

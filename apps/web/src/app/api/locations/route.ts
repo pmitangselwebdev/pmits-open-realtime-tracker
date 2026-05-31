@@ -6,8 +6,6 @@ import { locationSchema, deviceLocationSchema } from "shared"
 import { ZodError } from "zod"
 import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit"
 
-const isServerless = process.env.VERCEL === "1" || process.env.NEXT_RUNTIME === "nodejs"
-
 const LOCATION_BATCH: {
   vehicleId: string
   lat: number
@@ -32,7 +30,7 @@ async function flushBatch() {
 }
 
 function scheduleFlush() {
-  if (isServerless) return
+  if (process.env.VERCEL) return
   if (batchTimer) return
   batchTimer = setTimeout(() => {
     batchTimer = null
@@ -101,7 +99,7 @@ export async function POST(req: Request) {
       battery: body.battery ?? null,
     }
 
-    if (isServerless) {
+    if (process.env.VERCEL) {
       await prisma.location.create({ data: batchEntry })
     } else {
       LOCATION_BATCH.push(batchEntry)

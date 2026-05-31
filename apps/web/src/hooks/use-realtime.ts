@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useCallback } from "react"
 import { supabase } from "@/lib/supabase-client"
-import type { RealtimeChannel } from "@supabase/supabase-js"
 
 type MessageHandler = (payload: any) => void
 
@@ -17,7 +16,7 @@ export function useRealtime({
   event,
   onMessage,
 }: UseRealtimeOptions) {
-  const channelRef = useRef<RealtimeChannel | null>(null)
+  const channelRef = useRef<any>(null)
   const onMessageRef = useRef(onMessage)
   onMessageRef.current = onMessage
 
@@ -29,7 +28,7 @@ export function useRealtime({
     channelRef.current.on(
       "broadcast",
       { event },
-      (payload) => {
+      (payload: any) => {
         onMessageRef.current?.(payload)
       }
     )

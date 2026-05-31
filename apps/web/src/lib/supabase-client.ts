@@ -7,9 +7,3 @@ export const supabase =
   supabaseUrl && supabaseAnonKey
     ? createClient(supabaseUrl, supabaseAnonKey)
     : null
-
-if (!supabaseUrl || !supabaseAnonKey) {
-  console.warn(
-    "Supabase client env vars missing — real-time unavailable on client"
-  )
-}

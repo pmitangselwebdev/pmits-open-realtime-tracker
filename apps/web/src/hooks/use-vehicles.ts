@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback } from "react"
+import { useCallback, useEffect, useRef } from "react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import type { VehicleWithStatus } from "shared"
 import { useRealtime } from "./use-realtime"
@@ -19,8 +19,14 @@ interface UseVehiclesReturn {
   refetch: () => void
 }
 
+const hasSupabase =
+  typeof window !== "undefined" &&
+  !!process.env.NEXT_PUBLIC_SUPABASE_URL &&
+  !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
 export function useVehicles(): UseVehiclesReturn {
   const queryClient = useQueryClient()
+  const pollingRef = useRef<ReturnType<typeof setInterval>>()
 
   const {
     data: vehicles = [],
@@ -33,7 +39,7 @@ export function useVehicles(): UseVehiclesReturn {
     staleTime: 30 * 1000,
   })
 
-  const handleMessage = useCallback(
+  const handleLocation = useCallback(
     (msg: { vehicleId: string; location: any }) => {
       queryClient.setQueryData<VehicleWithStatus[]>(["vehicles"], (prev) =>
         (prev ?? []).map((v) =>
@@ -46,10 +52,24 @@ export function useVehicles(): UseVehiclesReturn {
     [queryClient]
   )
 
+  useEffect(() => {
+    if (hasSupabase) return
+
+    pollingRef.current = setInterval(() => {
+      refetch()
+    }, 10_000)
+
+    return () => clearInterval(pollingRef.current)
+  }, [refetch])
+
   useRealtime({
     channel: "locations",
     event: "location_update",
-    onMessage: handleMessage,
+    onMessage: (payload: any) => {
+      if (payload?.vehicleId && payload?.location) {
+        handleLocation(payload)
+      }
+    },
   })
 
   const onlineCount = vehicles.filter((v) => v.online).length
