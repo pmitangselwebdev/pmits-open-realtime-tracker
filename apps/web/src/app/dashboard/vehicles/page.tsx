@@ -13,10 +13,10 @@ import { cn } from "@/lib/utils"
 
 export default function VehiclesPage() {
   const { vehicles, isLoading } = useVehicles()
-  const { searchQuery, setSearchQuery, filter, setFilter, selectVehicle } =
+  const { searchQuery, setSearchQuery, filter, setFilter } =
     useDashboardStore()
   const queryClient = useQueryClient()
-  const [editing, setEditing] = useState<string | null>(null)
+  const [editing] = useState<string | null>(null)
 
   const filtered = vehicles.filter((v) => {
     const q = searchQuery.toLowerCase()

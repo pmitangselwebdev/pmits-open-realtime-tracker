@@ -1,9 +1,27 @@
 import { getToken } from "next-auth/jwt"
 import { NextRequest, NextResponse } from "next/server"
+import { corsHeaders, handleCORS } from "@/lib/cors"
 
 export async function middleware(req: NextRequest) {
-  const token = await getToken({ req })
+  if (req.method === "OPTIONS") {
+    return handleCORS(req.headers.get("origin"))
+  }
+
+  const origin = req.headers.get("origin")
   const { pathname } = req.nextUrl
+
+  if (pathname.startsWith("/api/")) {
+    const response = NextResponse.next()
+    if (origin) {
+      const headers = corsHeaders(origin)
+      Object.entries(headers).forEach(([key, value]) => {
+        response.headers.set(key, value)
+      })
+    }
+    return response
+  }
+
+  const token = await getToken({ req })
 
   const authPages = ["/login", "/register"]
   const isAuthPage = authPages.some((p) => pathname.startsWith(p))
@@ -22,5 +40,5 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/login", "/register"],
+  matcher: ["/dashboard/:path*", "/login", "/register", "/api/:path*"],
 }

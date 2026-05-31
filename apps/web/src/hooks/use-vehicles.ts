@@ -1,7 +1,7 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
-import { useQuery } from "@tanstack/react-query"
+import { useCallback } from "react"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import type { VehicleWithStatus } from "shared"
 import { useRealtime } from "./use-realtime"
 
@@ -20,10 +20,10 @@ interface UseVehiclesReturn {
 }
 
 export function useVehicles(): UseVehiclesReturn {
-  const [vehicles, setVehicles] = useState<VehicleWithStatus[]>([])
+  const queryClient = useQueryClient()
 
   const {
-    data: initialData,
+    data: vehicles = [],
     isLoading,
     error: queryError,
     refetch,
@@ -33,25 +33,17 @@ export function useVehicles(): UseVehiclesReturn {
     staleTime: 30 * 1000,
   })
 
-  useEffect(() => {
-    if (initialData) setVehicles(initialData)
-  }, [initialData])
-
   const handleMessage = useCallback(
-    (payload: { event: string; payload: any }) => {
-      const msg = payload.payload
-
-      if (payload.event === "location_update") {
-        setVehicles((prev) =>
-          prev.map((v) =>
-            v.id === msg.vehicleId
-              ? { ...v, latestLocation: msg.location, online: true }
-              : v
-          )
+    (msg: { vehicleId: string; location: any }) => {
+      queryClient.setQueryData<VehicleWithStatus[]>(["vehicles"], (prev) =>
+        (prev ?? []).map((v) =>
+          v.id === msg.vehicleId
+            ? { ...v, latestLocation: msg.location, online: true }
+            : v
         )
-      }
+      )
     },
-    []
+    [queryClient]
   )
 
   useRealtime({

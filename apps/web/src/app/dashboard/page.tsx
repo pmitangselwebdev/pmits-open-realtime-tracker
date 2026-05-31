@@ -16,7 +16,7 @@ const MapView = dynamic(
 )
 
 export default function DashboardPage() {
-  const { vehicles, onlineCount, isLoading, error } = useVehicles()
+  const { vehicles, onlineCount, isLoading } = useVehicles()
 
   return (
     <div className="flex flex-col flex-1 min-h-0 space-y-6">

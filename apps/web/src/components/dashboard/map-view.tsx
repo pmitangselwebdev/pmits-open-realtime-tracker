@@ -15,6 +15,17 @@ interface MapViewProps {
   showOnlineBadge?: boolean
 }
 
+interface AnimState {
+  fromLng: number
+  fromLat: number
+  toLng: number
+  toLat: number
+  fromHeading: number
+  toHeading: number
+  startTime: number
+  duration: number
+}
+
 function getVehicleType(name: string): string {
   const n = name.toLowerCase()
   if (["motor", "supra", "vario", "beat", "nmax", "scooter", "klx", "crf"].some((k) => n.includes(k))) return "motor"
@@ -50,7 +61,7 @@ function createMarkerElement(
 ) {
   const el = document.createElement("div")
   el.className = "vehicle-marker"
-  const heading = vehicle.latestLocation?.heading ?? 0
+  el.dataset.vehicleId = vehicle.id
   const color = vehicle.online ? (vehicle.color ?? "#3b82f6") : "#6b7280"
   const size = isSelected ? 40 : 32
   const type = getVehicleType(vehicle.name)
@@ -60,11 +71,11 @@ function createMarkerElement(
     <div style="
       width: ${size}px; height: ${size}px;
       cursor: pointer; position: relative;
-      transition: all 0.2s;
       filter: drop-shadow(0 2px 6px rgba(0,0,0,0.35));
+      will-change: transform;
     ">
       <svg viewBox="0 0 24 24" width="100%" height="100%"
-        style="display:block;transform:rotate(${heading}deg)">
+        style="display:block;will-change:transform">
         ${svg}
       </svg>
       ${vehicle.online ? `<div style="
@@ -78,25 +89,11 @@ function createMarkerElement(
   return el
 }
 
-function createPopupHtml(vehicle: VehicleWithStatus) {
-  const loc = vehicle.latestLocation
-  return `
-    <div style="
-      background:#1e293b;color:#f1f5f9;
-      padding:12px 16px;border-radius:12px;
-      font-family:system-ui,sans-serif;
-      min-width:180px;
-      box-shadow:0 4px 20px rgba(0,0,0,0.3);
-    ">
-      <div style="font-weight:600;font-size:14px;margin-bottom:2px;">${vehicle.name}</div>
-      <div style="color:#94a3b8;font-size:12px;margin-bottom:8px;">${vehicle.plate}</div>
-      <div style="display:flex;gap:12px;font-size:12px;">
-        <span style="color:${vehicle.online ? "#22c55e" : "#6b7280"}">● ${vehicle.online ? "Online" : "Offline"}</span>
-        ${loc?.speed != null ? `<span style="color:#94a3b8;">${loc.speed.toFixed(0)} km/h</span>` : ""}
-        ${loc?.heading != null ? `<span style="color:#94a3b8;">${loc.heading.toFixed(0)}°</span>` : ""}
-      </div>
-    </div>
-  `
+function lerpAngle(a: number, b: number, t: number): number {
+  let diff = b - a
+  if (diff > 180) diff -= 360
+  if (diff < -180) diff += 360
+  return a + diff * t
 }
 
 export function MapView({
@@ -108,39 +105,169 @@ export function MapView({
   const mapContainer = useRef<HTMLDivElement>(null)
   const mapRef = useRef<maplibregl.Map | null>(null)
   const markersRef = useRef<Map<string, maplibregl.Marker>>(new Map())
+  const animsRef = useRef<Map<string, AnimState>>(new Map())
+  const rafRef = useRef<number | null>(null)
   const [styleId, setStyleId] = useState("street")
   const [mapReady, setMapReady] = useState(false)
 
   const onlineCount = vehicles.filter((v) => v.online).length
 
-  const updateMarkers = useCallback(() => {
+  function easeOutCubic(t: number): number {
+    return 1 - Math.pow(1 - t, 3)
+  }
+
+  const tick = useCallback(() => {
     const map = mapRef.current
     if (!map) return
 
-    markersRef.current.forEach((marker) => marker.remove())
-    markersRef.current.clear()
+    const now = performance.now()
+    let hasActive = false
+
+    for (const [id, anim] of animsRef.current) {
+      const marker = markersRef.current.get(id)
+      if (!marker) continue
+
+      const elapsed = now - anim.startTime
+      const t = Math.min(elapsed / anim.duration, 1)
+      const eased = easeOutCubic(t)
+
+      const lng = anim.fromLng + (anim.toLng - anim.fromLng) * eased
+      const lat = anim.fromLat + (anim.toLat - anim.fromLat) * eased
+      const heading = lerpAngle(anim.fromHeading, anim.toHeading, eased)
+
+      marker.setLngLat([lng, lat])
+      const svg = marker.getElement().querySelector("svg")
+      if (svg) svg.style.transform = `rotate(${heading}deg)`
+
+      if (t < 1) hasActive = true
+    }
+
+    if (hasActive) {
+      rafRef.current = requestAnimationFrame(tick)
+    } else {
+      rafRef.current = null
+    }
+  }, [])
+
+  function startAnim(vehicleId: string, fromLng: number, fromLat: number, toLng: number, toLat: number, fromHeading: number, toHeading: number) {
+    animsRef.current.set(vehicleId, {
+      fromLng, fromLat, toLng, toLat,
+      fromHeading, toHeading,
+      startTime: performance.now(),
+      duration: 150,
+    })
+
+    if (!rafRef.current) {
+      rafRef.current = requestAnimationFrame(tick)
+    }
+  }
+
+  const diffMarkers = useCallback(() => {
+    const map = mapRef.current
+    if (!map) return
+
+    const currentIds = new Set(markersRef.current.keys())
+    const targetIds = new Set(vehicles.filter((v) => v.latestLocation).map((v) => v.id))
+
+    for (const id of currentIds) {
+      if (!targetIds.has(id)) {
+        markersRef.current.get(id)?.remove()
+        markersRef.current.delete(id)
+        animsRef.current.delete(id)
+      }
+    }
 
     vehicles.forEach((vehicle) => {
       const loc = vehicle.latestLocation
       if (!loc) return
 
-      const el = createMarkerElement(vehicle, selectedVehicleId === vehicle.id)
-      el.addEventListener("click", () => onVehicleClick?.(vehicle.id))
+      const existing = markersRef.current.get(vehicle.id)
+      if (existing) {
+        const currentPos = existing.getLngLat()
+        const svg = existing.getElement().querySelector("svg")
+        const currentHeading = svg
+          ? parseFloat(svg.style.transform.replace("rotate(", "").replace("deg)", "")) || 0
+          : 0
 
-      const marker = new maplibregl.Marker({ element: el })
-        .setLngLat([loc.lng, loc.lat])
-        .setPopup(
+        if (currentPos.lat !== loc.lat || currentPos.lng !== loc.lng) {
+          startAnim(
+            vehicle.id,
+            currentPos.lng, currentPos.lat,
+            loc.lng, loc.lat,
+            currentHeading, loc.heading ?? currentHeading
+          )
+        }
+        const markerEl = existing.getElement()
+        const color = vehicle.online ? (vehicle.color ?? "#3b82f6") : "#6b7280"
+        const size = selectedVehicleId === vehicle.id ? 40 : 32
+        const type = getVehicleType(vehicle.name)
+        const svgContent = getVehicleSvg(type, color)
+        markerEl.innerHTML = `
+          <div style="
+            width: ${size}px; height: ${size}px;
+            cursor: pointer; position: relative;
+            filter: drop-shadow(0 2px 6px rgba(0,0,0,0.35));
+            will-change: transform;
+          ">
+            <svg viewBox="0 0 24 24" width="100%" height="100%"
+              style="display:block;will-change:transform">
+              ${svgContent}
+            </svg>
+            ${vehicle.online ? `<div style="
+              position:absolute;top:-2px;right:-2px;
+              width:8px;height:8px;border-radius:50%;
+              background:#22c55e;
+              box-shadow:0 0 6px rgba(34,197,94,0.6);
+            "></div>` : ""}
+          </div>
+        `
+        existing.setPopup(
           new maplibregl.Popup({
             offset: 20,
             closeButton: false,
             className: "vehicle-popup",
           }).setHTML(createPopupHtml(vehicle))
         )
-        .addTo(map)
+      } else {
+        const el = createMarkerElement(vehicle, selectedVehicleId === vehicle.id)
+        el.addEventListener("click", () => onVehicleClick?.(vehicle.id))
 
-      markersRef.current.set(vehicle.id, marker)
+        const marker = new maplibregl.Marker({ element: el })
+          .setLngLat([loc.lng, loc.lat])
+          .setPopup(
+            new maplibregl.Popup({
+              offset: 20,
+              closeButton: false,
+              className: "vehicle-popup",
+            }).setHTML(createPopupHtml(vehicle))
+          )
+          .addTo(map)
+
+        markersRef.current.set(vehicle.id, marker)
+      }
     })
   }, [vehicles, selectedVehicleId, onVehicleClick])
+
+  function createPopupHtml(vehicle: VehicleWithStatus) {
+    const loc = vehicle.latestLocation
+    return `
+      <div style="
+        background:#1e293b;color:#f1f5f9;
+        padding:12px 16px;border-radius:12px;
+        font-family:system-ui,sans-serif;
+        min-width:180px;
+        box-shadow:0 4px 20px rgba(0,0,0,0.3);
+      ">
+        <div style="font-weight:600;font-size:14px;margin-bottom:2px;">${vehicle.name}</div>
+        <div style="color:#94a3b8;font-size:12px;margin-bottom:8px;">${vehicle.plate}</div>
+        <div style="display:flex;gap:12px;font-size:12px;">
+          <span style="color:${vehicle.online ? "#22c55e" : "#6b7280"}">● ${vehicle.online ? "Online" : "Offline"}</span>
+          ${loc?.speed != null ? `<span style="color:#94a3b8;">${loc.speed.toFixed(0)} km/h</span>` : ""}
+          ${loc?.heading != null ? `<span style="color:#94a3b8;">${loc.heading.toFixed(0)}°</span>` : ""}
+        </div>
+      </div>
+    `
+  }
 
   const handleStyleChange = useCallback(
     (style: MapStyle) => {
@@ -149,10 +276,10 @@ export function MapView({
       setStyleId(style.id)
       map.setStyle(style.style as any)
       map.once("style.load", () => {
-        updateMarkers()
+        diffMarkers()
       })
     },
-    [updateMarkers]
+    [diffMarkers]
   )
 
   useEffect(() => {
@@ -176,30 +303,32 @@ export function MapView({
     map.on("load", () => {
       map.resize()
       setMapReady(true)
-      updateMarkers()
+      diffMarkers()
     })
 
     mapRef.current = map
 
     return () => {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current)
       map.remove()
       mapRef.current = null
       markersRef.current.clear()
+      animsRef.current.clear()
     }
-  }, [updateMarkers])
+  }, [diffMarkers])
 
   useEffect(() => {
     if (!mapReady) return
     const map = mapRef.current
     if (!map || !map.isStyleLoaded()) {
-      const onLoad = () => updateMarkers()
+      const onLoad = () => diffMarkers()
       map?.on("style.load", onLoad)
       return () => {
         map?.off("style.load", onLoad)
       }
     }
-    updateMarkers()
-  }, [updateMarkers, mapReady])
+    diffMarkers()
+  }, [diffMarkers, mapReady])
 
   useEffect(() => {
     const map = mapRef.current

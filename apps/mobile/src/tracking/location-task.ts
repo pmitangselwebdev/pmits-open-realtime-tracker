@@ -1,7 +1,9 @@
 import * as TaskManager from "expo-task-manager"
 import * as Location from "expo-location"
+import * as Battery from "expo-battery"
 import { sendLocation } from "./api-client"
 import { addToBuffer, flushBuffer } from "./offline-buffer"
+import { useTrackingStore } from "../stores/tracking-store"
 
 export const LOCATION_TASK_NAME = "background-location-task"
 
@@ -19,6 +21,11 @@ TaskManager.defineTask(LOCATION_TASK_NAME, async ({ data, error }) => {
   if (!locations?.length || !currentSettings) return
 
   const { serverUrl, uniqueId } = currentSettings
+  let batteryLevel: number | null = null
+
+  try {
+    batteryLevel = await Battery.getBatteryLevelAsync()
+  } catch {}
 
   for (const loc of locations) {
     const entry = {
@@ -28,11 +35,13 @@ TaskManager.defineTask(LOCATION_TASK_NAME, async ({ data, error }) => {
       speed: loc.coords.speed ?? null,
       heading: loc.coords.heading ?? null,
       accuracy: loc.coords.accuracy ?? null,
-      battery: null as number | null,
+      battery: batteryLevel != null ? batteryLevel * 100 : null,
     }
 
     const ok = await sendLocation(serverUrl, uniqueId, entry)
-    if (!ok) {
+    if (ok) {
+      useTrackingStore.getState().incrementSent()
+    } else {
       await addToBuffer(entry)
     }
   }
