@@ -55,7 +55,7 @@ function getVehicleSvg(type: string, color: string): string {
 
 function createMarkerElement(
   vehicle: VehicleWithStatus,
-  isSelected: boolean
+  isSelected: boolean,
 ) {
   const el = document.createElement("div")
   el.className = "vehicle-marker"
@@ -64,6 +64,7 @@ function createMarkerElement(
   const size = isSelected ? 40 : 32
   const type = getVehicleType(vehicle.name)
   const svg = getVehicleSvg(type, color)
+  const heading = vehicle.latestLocation?.heading ?? 0
 
   el.innerHTML = `
     <div style="
@@ -73,7 +74,7 @@ function createMarkerElement(
       will-change: transform;
     ">
       <svg viewBox="0 0 24 24" width="100%" height="100%"
-        style="display:block;will-change:transform">
+        style="display:block;will-change:transform;transform:rotate(${heading}deg)">
         ${svg}
       </svg>
       ${vehicle.online ? `<div style="
@@ -220,7 +221,6 @@ export function MapView({
       } else {
         const el = createMarkerElement(vehicle, selectedVehicleId === vehicle.id)
         el.addEventListener("click", () => onVehicleClick?.(vehicle.id))
-        setHeading(vehicle.id, loc.heading ?? 0)
 
         const marker = new maplibregl.Marker({ element: el, anchor: "center" })
           .setLngLat([loc.lng, loc.lat])
@@ -234,6 +234,7 @@ export function MapView({
           .addTo(map)
 
         markersRef.current.set(vehicle.id, marker)
+        setHeading(vehicle.id, loc.heading ?? 0)
       }
     })
   }, [vehicles, selectedVehicleId, onVehicleClick])
