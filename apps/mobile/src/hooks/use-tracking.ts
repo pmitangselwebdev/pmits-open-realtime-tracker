@@ -9,6 +9,7 @@ import {
 } from "../tracking/location-task"
 import { getSettings, saveSettings } from "../tracking/api-client"
 import { getBufferCount } from "../tracking/offline-buffer"
+import { startHeadingSender, stopHeadingSender } from "../tracking/heading-sender"
 
 export function useTracking() {
   const store = useTrackingStore()
@@ -51,6 +52,7 @@ export function useTracking() {
       if (ok) {
         store.setTracking(true)
         store.setError(null)
+        startHeadingSender(settings.serverUrl, settings.uniqueId)
       } else {
         store.setError("Location permission denied")
       }
@@ -63,6 +65,7 @@ export function useTracking() {
 
   const stop = useCallback(async () => {
     await stopTask()
+    stopHeadingSender()
     store.setTracking(false)
   }, [])
 

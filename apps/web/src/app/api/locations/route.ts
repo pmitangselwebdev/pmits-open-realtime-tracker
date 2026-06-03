@@ -5,6 +5,7 @@ import { supabase } from "@/lib/supabase"
 import { locationSchema, deviceLocationSchema } from "shared"
 import { ZodError } from "zod"
 import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit"
+import { matchRoute } from "@/lib/osrm"
 
 const LOCATION_BATCH: {
   vehicleId: string
@@ -160,6 +161,7 @@ export async function GET(req: Request) {
     const url = new URL(req.url)
     const vehicleId = url.searchParams.get("vehicleId")
     const replay = url.searchParams.get("replay") === "true"
+    const doMatch = url.searchParams.get("match") === "true"
     const limit = replay
       ? Math.min(Number(url.searchParams.get("limit")) || 2000, 5000)
       : Math.min(Number(url.searchParams.get("limit")) || 100, 1000)
@@ -223,7 +225,13 @@ export async function GET(req: Request) {
 
     const hasMore = locations.length === limit
 
-    return Response.json({ locations, hasMore })
+    let matchedRoute: [number, number][] | null = null
+    if (doMatch && replay && locations.length > 1) {
+      const coords = locations.map((l) => [l.lng, l.lat] as [number, number])
+      matchedRoute = await matchRoute(coords)
+    }
+
+    return Response.json({ locations, hasMore, matchedRoute })
   } catch {
     return Response.json(
       { error: "Internal server error", code: "INTERNAL_ERROR" },

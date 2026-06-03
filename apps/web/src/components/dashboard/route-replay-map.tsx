@@ -25,6 +25,7 @@ interface RouteReplayMapProps {
   vehicleName: string
   vehicleColor: string
   isLoading: boolean
+  matchedRoute?: [number, number][] | null
 }
 
 const SPEEDS = [1, 2, 5, 10] as const
@@ -58,6 +59,7 @@ export function RouteReplayMap({
   vehicleName,
   vehicleColor,
   isLoading,
+  matchedRoute,
 }: RouteReplayMapProps) {
   const mapContainer = useRef<HTMLDivElement>(null)
   const mapRef = useRef<maplibregl.Map | null>(null)
@@ -75,55 +77,100 @@ export function RouteReplayMap({
 
   const polylineSourceId = "route-polyline"
   const polylineLayerId = "route-line"
+  const matchSourceId = "route-matched"
+  const matchLayerId = "route-matched-line"
 
   const drawRoute = useCallback((map: maplibregl.Map) => {
     if (locations.length < 2) return
 
     const coords = locations.map((l) => [l.lng, l.lat] as [number, number])
 
-    const src = map.getSource(polylineSourceId) as maplibregl.GeoJSONSource
-    if (src) {
-      src.setData({
+    const rawSrc = map.getSource(polylineSourceId) as maplibregl.GeoJSONSource
+    if (rawSrc) {
+      rawSrc.setData({
         type: "Feature",
         properties: {},
         geometry: { type: "LineString", coordinates: coords },
       })
-      return
+    } else {
+      map.addSource(polylineSourceId, {
+        type: "geojson",
+        data: {
+          type: "Feature",
+          properties: {},
+          geometry: { type: "LineString", coordinates: coords },
+        },
+      })
+
+      map.addLayer({
+        id: polylineLayerId,
+        type: "line",
+        source: polylineSourceId,
+        layout: { "line-join": "round", "line-cap": "round" },
+        paint: {
+          "line-color": "#3b82f6",
+          "line-width": 2,
+          "line-opacity": 0.5,
+          "line-dasharray": [2, 4],
+        },
+      })
+
+      map.addLayer({
+        id: `${polylineLayerId}-glow`,
+        type: "line",
+        source: polylineSourceId,
+        layout: { "line-join": "round", "line-cap": "round" },
+        paint: {
+          "line-color": "#3b82f6",
+          "line-width": 6,
+          "line-opacity": 0.1,
+        },
+      })
     }
 
-    map.addSource(polylineSourceId, {
-      type: "geojson",
-      data: {
+    const hasMatch = matchedRoute && matchedRoute.length > 1
+    const matchSrc = map.getSource(matchSourceId) as maplibregl.GeoJSONSource
+    if (hasMatch && matchSrc) {
+      matchSrc.setData({
         type: "Feature",
         properties: {},
-        geometry: { type: "LineString", coordinates: coords },
-      },
-    })
+        geometry: { type: "LineString", coordinates: matchedRoute },
+      })
+    } else if (hasMatch && !matchSrc) {
+      map.addSource(matchSourceId, {
+        type: "geojson",
+        data: {
+          type: "Feature",
+          properties: {},
+          geometry: { type: "LineString", coordinates: matchedRoute },
+        },
+      })
 
-    map.addLayer({
-      id: polylineLayerId,
-      type: "line",
-      source: polylineSourceId,
-      layout: { "line-join": "round", "line-cap": "round" },
-      paint: {
-        "line-color": "#3b82f6",
-        "line-width": 4,
-        "line-opacity": 0.8,
-      },
-    })
+      map.addLayer({
+        id: matchLayerId,
+        type: "line",
+        source: matchSourceId,
+        layout: { "line-join": "round", "line-cap": "round" },
+        paint: {
+          "line-color": "#22c55e",
+          "line-width": 4,
+          "line-opacity": 0.9,
+        },
+      })
 
-    map.addLayer({
-      id: `${polylineLayerId}-glow`,
-      type: "line",
-      source: polylineSourceId,
-      layout: { "line-join": "round", "line-cap": "round" },
-      paint: {
-        "line-color": "#3b82f6",
-        "line-width": 10,
-        "line-opacity": 0.2,
-      },
-    })
-  }, [locations])
+      map.addLayer({
+        id: `${matchLayerId}-glow`,
+        type: "line",
+        source: matchSourceId,
+        layout: { "line-join": "round", "line-cap": "round" },
+        paint: {
+          "line-color": "#22c55e",
+          "line-width": 8,
+          "line-opacity": 0.25,
+        },
+      })
+    }
+  }, [locations, matchedRoute])
 
   useEffect(() => {
     if (!mapContainer.current || mapRef.current) return
@@ -377,6 +424,11 @@ export function RouteReplayMap({
           <p className="text-xs text-muted-foreground">
             {currentIdx + 1} / {totalPoints} points
           </p>
+          {matchedRoute && matchedRoute.length > 1 && (
+            <p className="text-xs text-emerald-400 mt-0.5">
+              ● Snap to roads
+            </p>
+          )}
         </Card>
       </div>
 

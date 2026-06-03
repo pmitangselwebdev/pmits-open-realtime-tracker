@@ -62,6 +62,24 @@ export function useVehicles(): UseVehiclesReturn {
     },
   })
 
+  useRealtime({
+    channel: "locations",
+    event: "heading_update",
+    onMessage: (payload: any) => {
+      if (!payload?.vehicleId || payload?.heading == null) return
+      queryClient.setQueryData<VehicleWithStatus[]>(["vehicles"], (prev) =>
+        (prev ?? []).map((v) => {
+          if (v.id !== payload.vehicleId) return v
+          if (!v.latestLocation) return v
+          return {
+            ...v,
+            latestLocation: { ...v.latestLocation, heading: payload.heading },
+          }
+        })
+      )
+    },
+  })
+
   const onlineCount = vehicles.filter((v) => v.online).length
 
   return {
