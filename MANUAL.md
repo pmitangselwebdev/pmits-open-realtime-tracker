@@ -337,3 +337,90 @@ Error: Map is not defined
 
 **Real-time tidak jalan:**
 → Cek `NEXT_PUBLIC_SUPABASE_URL` dan `NEXT_PUBLIC_SUPABASE_ANON_KEY`. Tanpa ini, dashboard polling tiap 10 detik.
+
+---
+
+## Setup Produksi di Vercel — Step by Step
+
+Setelah deploy pertama sukses, lakukan langkah berikut:
+
+### 1. Setup Vercel Postgres
+
+```
+Dashboard → Storage → Create Database → pilih Postgres
+→ Connect ke project → env vars otomatis terisi
+```
+
+### 2. Setup Vercel KV (Redis)
+
+```
+Dashboard → Storage → Create KV → Connect ke project yang sama
+```
+
+Vercel inject `KV_URL`. Kode otomatis membaca `KV_URL` atau `REDIS_URL`.
+
+### 3. Set Environment Variables
+
+Vercel → Project → Settings → Environment Variables → Production:
+
+| Variable | Cara |
+|---|---|
+| `AUTH_SECRET` | `openssl rand -base64 32` (generate di terminal) |
+| `NEXTAUTH_URL` | `https://project-xi.vercel.app` |
+| `NEXT_PUBLIC_APP_URL` | sama dengan NEXTAUTH_URL |
+
+### 4. Redeploy
+
+```
+Vercel → Deployments → ⋮ → Redeploy
+```
+
+### 5. Run Prisma Migration
+
+Di terminal Vercel atau local:
+
+```bash
+npx vercel env pull .env.production  # local only
+pnpm db:migrate:deploy
+```
+
+### 6. Buat User & Vehicle
+
+Via dashboard web:
+- `https://project-xi.vercel.app` → Register
+- Vehicles → Add Vehicle
+- Isi Name, Plate, Unique ID (contoh: `TRK-001`)
+
+Atau seed CLI:
+
+```bash
+pnpm db:seed
+```
+
+### 7. Build & Install Mobile APK
+
+```bash
+cd apps/mobile
+
+# Login Expo (butuh akun expo.dev)
+npx eas login
+
+# Build APK
+npx eas build --platform android --profile production-apk
+```
+
+Download APK hasil build → install di HP → input:
+- **Server URL:** `https://project-xi.vercel.app`
+- **Unique ID:** `TRK-001`
+
+### 8. Opsional — Supabase Realtime (hilangkan delay polling)
+
+Daftar di [supabase.com](https://supabase.com) (gratis) → Project Settings → API → copy:
+
+| Vercel Env Var | Dari Supabase |
+|---|---|
+| `NEXT_PUBLIC_SUPABASE_URL` | Project URL |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Anon Key |
+| `SUPABASE_SERVICE_ROLE_KEY` | Service Role Key |
+
+Set di Vercel → Redeploy. Dashboard real-time tanpa delay 10 detik.
