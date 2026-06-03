@@ -8,25 +8,39 @@ export interface MapStyle {
   preview?: string
 }
 
+function rasterStyle(
+  id: string,
+  name: string,
+  tiles: string[],
+  attribution: string,
+): MapStyle {
+  return {
+    id,
+    name,
+    type: "raster",
+    style: {
+      version: 8,
+      sources: {
+        [id]: { type: "raster", tiles, tileSize: 256, attribution },
+      },
+      layers: [{ id: `${id}-layer`, type: "raster", source: id }],
+    },
+  }
+}
+
 export const mapStyles: MapStyle[] = [
-  {
-    id: "street",
-    name: "Street",
-    type: "vector",
-    style: "https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json",
-  },
-  {
-    id: "dark",
-    name: "Dark",
-    type: "vector",
-    style: "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json",
-  },
-  {
-    id: "light",
-    name: "Light",
-    type: "vector",
-    style: "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json",
-  },
+  rasterStyle("street", "Street", [
+    "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+  ], '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>'),
+  rasterStyle("dark", "Dark", [
+    "https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png",
+  ], '&copy; <a href="https://carto.com/">CARTO</a>'),
+  rasterStyle("light", "Light", [
+    "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+  ], '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>'),
+  rasterStyle("topo", "Topo", [
+    "https://tile.opentopomap.org/{z}/{x}/{y}.png",
+  ], '&copy; <a href="https://opentopomap.org">OpenTopoMap</a>'),
   {
     id: "satellite",
     name: "Satellite",
@@ -51,34 +65,6 @@ export const mapStyles: MapStyle[] = [
           source: "satellite-tiles",
         },
       ],
-      glyphs: "https://fonts.openmaptiles.org/{fontstack}/{range}.pbf",
-    },
-  },
-  {
-    id: "terrain",
-    name: "Terrain",
-    type: "raster",
-    style: {
-      version: 8,
-      sources: {
-        "terrain-tiles": {
-          type: "raster",
-          tiles: [
-            "https://tile.openstreetmap.de/{z}/{x}/{y}.png",
-          ],
-          tileSize: 256,
-          attribution:
-            '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>',
-        },
-      },
-      layers: [
-        {
-          id: "terrain-layer",
-          type: "raster",
-          source: "terrain-tiles",
-        },
-      ],
-      glyphs: "https://fonts.openmaptiles.org/{fontstack}/{range}.pbf",
     },
   },
 ]
