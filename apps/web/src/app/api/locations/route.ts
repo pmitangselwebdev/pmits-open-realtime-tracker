@@ -5,7 +5,9 @@ import { supabase } from "@/lib/supabase"
 import { locationSchema, deviceLocationSchema } from "shared"
 import { ZodError } from "zod"
 import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit"
-import { calculateDistance } from "@/lib/geo"
+import { calculateDistance, smoothRoute } from "@/lib/geo"
+import { matchRoute } from "@/lib/map-match"
+import { checkGeofence, generateEventMessage } from "@/lib/geofence"
 
 const LOCATION_BATCH: {
   vehicleId: string
@@ -81,6 +83,16 @@ export async function POST(req: Request) {
       vehicleId = vehicle.id
     }
 
+    const vehicle = await prisma.vehicle.findUnique({
+      where: { id: vehicleId },
+      include: { user: true },
+    })
+    if (!vehicle) {
+      return Response.json({ error: "Vehicle not found" }, { status: 404 })
+    }
+
+    const userId = vehicle.userId
+
     const rateLimit = await checkRateLimit(identifier, "locations", {
       interval: 3000,
       maxRequests: 1,
@@ -128,6 +140,8 @@ export async function POST(req: Request) {
         },
       })
     }
+
+    processEvents(vehicle, body).catch(() => {})
 
     return Response.json(locationEntry, { status: 201 })
   } catch (error) {
@@ -224,17 +238,122 @@ export async function GET(req: Request) {
 
     const hasMore = locations.length === limit
 
+    let route: [number, number][]
     let distance = 0
+
     if (replay && locations.length > 1) {
       const coords = locations.map((l) => [l.lng, l.lat] as [number, number])
-      distance = calculateDistance(coords)
+      const matched = await matchRoute(coords)
+      if (matched) {
+        route = matched.coords
+        distance = matched.distance
+      } else {
+        distance = calculateDistance(coords)
+        route = smoothRoute(coords, 12)
+      }
+    } else {
+      route = []
     }
 
-    return Response.json({ locations, hasMore, distance })
+    return Response.json({ locations, hasMore, route, distance })
   } catch {
     return Response.json(
       { error: "Internal server error", code: "INTERNAL_ERROR" },
       { status: 500 }
     )
+  }
+}
+
+async function processEvents(
+  vehicle: { id: string; name: string; userId: string; speedLimit?: number | null },
+  body: { lat: number; lng: number; speed?: number | null }
+) {
+  const geofences = await prisma.geofence.findMany({ where: { userId: vehicle.userId } })
+  const lastLoc = await prisma.location.findFirst({
+    where: { vehicleId: vehicle.id },
+    orderBy: { timestamp: "desc" },
+    skip: 1,
+  })
+
+  const point = { lat: body.lat, lng: body.lng }
+  const speed = body.speed ?? 0
+  const now = new Date()
+
+  for (const gf of geofences) {
+    const inside = checkGeofence(point, gf.type, gf.vertices as any[], gf.radius)
+    const lastCheck = lastLoc ? checkGeofence(
+      { lat: lastLoc.lat, lng: lastLoc.lng },
+      gf.type,
+      gf.vertices as any[],
+      gf.radius
+    ) : false
+
+    if (inside && !lastCheck) {
+      await prisma.event.create({
+        data: {
+          userId: vehicle.userId,
+          vehicleId: vehicle.id,
+          geofenceId: gf.id,
+          type: "geofence_enter",
+          message: generateEventMessage("geofence_enter", vehicle.name, gf.name),
+          attributes: { lat: body.lat, lng: body.lng },
+          timestamp: now,
+        },
+      })
+    } else if (!inside && lastCheck) {
+      await prisma.event.create({
+        data: {
+          userId: vehicle.userId,
+          vehicleId: vehicle.id,
+          geofenceId: gf.id,
+          type: "geofence_exit",
+          message: generateEventMessage("geofence_exit", vehicle.name, gf.name),
+          attributes: { lat: body.lat, lng: body.lng },
+          timestamp: now,
+        },
+      })
+    }
+  }
+
+  if (vehicle.speedLimit && speed > vehicle.speedLimit) {
+    await prisma.event.create({
+      data: {
+        userId: vehicle.userId,
+        vehicleId: vehicle.id,
+        type: "speed_exceed",
+        message: generateEventMessage("speed_exceed", vehicle.name),
+        attributes: { speed, limit: vehicle.speedLimit },
+        timestamp: now,
+      },
+    })
+  }
+
+  if (lastLoc) {
+    const wasMoving = (lastLoc.speed ?? 0) > 0.5
+    const isMoving = speed > 0.5
+
+    if (isMoving && !wasMoving) {
+      await prisma.event.create({
+        data: {
+          userId: vehicle.userId,
+          vehicleId: vehicle.id,
+          type: "device_moving",
+          message: generateEventMessage("device_moving", vehicle.name),
+          attributes: { lat: body.lat, lng: body.lng, speed },
+          timestamp: now,
+        },
+      })
+    } else if (!isMoving && wasMoving) {
+      await prisma.event.create({
+        data: {
+          userId: vehicle.userId,
+          vehicleId: vehicle.id,
+          type: "device_stopped",
+          message: generateEventMessage("device_stopped", vehicle.name),
+          attributes: { lat: body.lat, lng: body.lng },
+          timestamp: now,
+        },
+      })
+    }
   }
 }

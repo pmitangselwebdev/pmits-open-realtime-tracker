@@ -30,12 +30,12 @@ export function VehicleDetailPanel({ vehicle }: VehicleDetailPanelProps) {
                 <div
                   className="h-10 w-10 rounded-lg flex items-center justify-center"
                   style={{
-                    backgroundColor: (vehicle.color ?? "#3b82f6") + "20",
+                    backgroundColor: (vehicle.color ?? "#dc2626") + "20",
                   }}
                 >
                   <Truck
                     className="h-5 w-5"
-                    style={{ color: vehicle.color ?? "#3b82f6" }}
+                    style={{ color: vehicle.color ?? "#dc2626" }}
                   />
                 </div>
                 <div>

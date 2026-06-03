@@ -10,7 +10,6 @@ import { Card } from "@/components/ui/card"
 import { MapStyleSwitcher } from "./map-style-switcher"
 import type { MapStyle } from "@/lib/map-styles"
 import { getMapStyle } from "@/lib/map-styles"
-import { smoothRoute } from "@/lib/geo"
 
 interface LocationPoint {
   id: string
@@ -26,6 +25,7 @@ interface RouteReplayMapProps {
   vehicleName: string
   vehicleColor: string
   isLoading: boolean
+  route?: [number, number][] | null
 }
 
 const SPEEDS = [1, 2, 5, 10] as const
@@ -59,6 +59,7 @@ export function RouteReplayMap({
   vehicleName,
   vehicleColor,
   isLoading,
+  route,
 }: RouteReplayMapProps) {
   const mapContainer = useRef<HTMLDivElement>(null)
   const mapRef = useRef<maplibregl.Map | null>(null)
@@ -79,8 +80,7 @@ export function RouteReplayMap({
   const drawRoute = useCallback((map: maplibregl.Map) => {
     if (locations.length < 2) return
 
-    const rawCoords = locations.map((l) => [l.lng, l.lat] as [number, number])
-    const coords = smoothRoute(rawCoords, 10)
+    const coords = route ?? locations.map((l) => [l.lng, l.lat] as [number, number])
 
     const src = map.getSource(routeSourceId) as maplibregl.GeoJSONSource
     if (src) {
@@ -127,7 +127,7 @@ export function RouteReplayMap({
         })
       } catch {}
     }
-  }, [locations])
+  }, [locations, route])
 
   useEffect(() => {
     if (!mapContainer.current || mapRef.current) return

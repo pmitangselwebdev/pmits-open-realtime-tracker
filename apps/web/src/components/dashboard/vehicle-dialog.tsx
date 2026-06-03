@@ -39,7 +39,7 @@ export function VehicleDialog({
   const [name, setName] = useState(initialData?.name ?? "")
   const [plate, setPlate] = useState(initialData?.plate ?? "")
   const [uniqueId, setUniqueId] = useState(initialData?.uniqueId ?? "")
-  const [color, setColor] = useState(initialData?.color ?? "#3b82f6")
+  const [color, setColor] = useState(initialData?.color ?? "#dc2626")
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [error, setError] = useState<string | null>(null)

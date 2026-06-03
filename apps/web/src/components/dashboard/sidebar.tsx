@@ -14,6 +14,9 @@ import {
   ChevronRight,
   Gauge,
   X,
+  MapPinned,
+  Bell,
+  FileSpreadsheet,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -25,7 +28,10 @@ const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/dashboard/map", label: "Map", icon: Map },
   { href: "/dashboard/vehicles", label: "Vehicles", icon: Truck },
+  { href: "/dashboard/geofences", label: "Geofences", icon: MapPinned },
+  { href: "/dashboard/events", label: "Events", icon: Bell },
   { href: "/dashboard/history", label: "History", icon: History },
+  { href: "/dashboard/reports", label: "Reports", icon: FileSpreadsheet },
   { href: "/dashboard/settings", label: "Settings", icon: Settings },
 ]
 

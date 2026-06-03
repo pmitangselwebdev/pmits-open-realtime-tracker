@@ -138,12 +138,12 @@ export default function VehiclesPage() {
                   <div
                     className="h-10 w-10 rounded-lg flex items-center justify-center shrink-0"
                     style={{
-                      backgroundColor: (vehicle.color ?? "#3b82f6") + "20",
+                      backgroundColor: (vehicle.color ?? "#dc2626") + "20",
                     }}
                   >
                     <Truck
                       className="h-5 w-5"
-                      style={{ color: vehicle.color ?? "#3b82f6" }}
+                      style={{ color: vehicle.color ?? "#dc2626" }}
                     />
                   </div>
 
@@ -182,7 +182,7 @@ export default function VehiclesPage() {
                         name: vehicle.name,
                         plate: vehicle.plate,
                         uniqueId: vehicle.uniqueId,
-                        color: vehicle.color ?? "#3b82f6",
+                        color: vehicle.color ?? "#dc2626",
                       }}
                       onSave={(data) => handleEdit(vehicle.id, data)}
                       onDelete={() => handleDelete(vehicle.id)}

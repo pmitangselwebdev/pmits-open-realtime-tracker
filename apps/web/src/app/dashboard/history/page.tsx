@@ -34,14 +34,14 @@ export default function HistoryPage() {
   }[datePreset]
 
   const selectedVehicle = vehicles.find((v) => v.id === selectedVehicleId)
-  const color = selectedVehicle?.color ?? "#3b82f6"
+  const color = selectedVehicle?.color ?? "#dc2626"
   const name = selectedVehicle?.name ?? ""
 
   const { data, isLoading } = useQuery({
     queryKey: ["locations", "replay", selectedVehicleId, datePreset],
     queryFn: async () => {
       if (!selectedVehicleId) {
-        return { locations: [], hasMore: false, distance: 0 }
+        return { locations: [], hasMore: false, route: [], distance: 0 }
       }
       const params = new URLSearchParams({
         vehicleId: selectedVehicleId,
@@ -54,6 +54,7 @@ export default function HistoryPage() {
       return res.json() as Promise<{
         locations: any[]
         hasMore: boolean
+        route: [number, number][]
         distance: number
       }>
     },
@@ -62,6 +63,7 @@ export default function HistoryPage() {
   })
 
   const locations = data?.locations ?? []
+  const route = data?.route ?? []
   const totalDistance = data?.distance ?? 0
   const duration =
     locations.length > 1
@@ -142,6 +144,7 @@ export default function HistoryPage() {
                   vehicleName={name}
                   vehicleColor={color}
                   isLoading={isLoading}
+                  route={route}
                 />
               </div>
 
@@ -189,26 +192,6 @@ export default function HistoryPage() {
       </div>
     </div>
   )
-}
-
-function calculateDistance(points: { lat: number; lng: number }[]): number {
-  let total = 0
-  for (let i = 1; i < points.length; i++) {
-    total += haversine(points[i - 1].lat, points[i - 1].lng, points[i].lat, points[i].lng)
-  }
-  return total
-}
-
-function haversine(lat1: number, lng1: number, lat2: number, lng2: number): number {
-  const R = 6371
-  const dLat = ((lat2 - lat1) * Math.PI) / 180
-  const dLng = ((lng2 - lng1) * Math.PI) / 180
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos((lat1 * Math.PI) / 180) *
-      Math.cos((lat2 * Math.PI) / 180) *
-      Math.sin(dLng / 2) ** 2
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
 }
 
 function formatDuration(seconds: number): string {
