@@ -42,7 +42,7 @@ export default function HistoryPage() {
   const { data, isLoading } = useQuery({
     queryKey: ["locations", "replay", selectedVehicleId, datePreset, snapToRoads],
     queryFn: async () => {
-      if (!selectedVehicleId) return { locations: [], hasMore: false, matchedRoute: null }
+      if (!selectedVehicleId) return { locations: [], hasMore: false, matchedRoute: null, matchedDistance: null }
       const params = new URLSearchParams({
         vehicleId: selectedVehicleId,
         after: afterDate.toISOString(),
