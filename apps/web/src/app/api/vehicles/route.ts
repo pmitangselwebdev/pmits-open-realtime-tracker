@@ -30,13 +30,13 @@ export async function GET() {
     orderBy: { createdAt: "desc" },
   })
 
-  const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000)
+  const onlineThreshold = new Date(Date.now() - 60 * 1000)
 
   const result = vehicles.map(({ locations, ...rest }) => ({
     ...rest,
     latestLocation: locations[0] ?? null,
     online: locations[0]
-      ? new Date(locations[0].timestamp) > fiveMinutesAgo
+      ? new Date(locations[0].timestamp) > onlineThreshold
       : false,
   }))
 

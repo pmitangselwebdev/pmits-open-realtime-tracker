@@ -184,43 +184,48 @@ export function MapView({
       const existing = markersRef.current.get(vehicle.id)
       if (existing) {
         const currentPos = existing.getLngLat()
-        const svg = existing.getElement().querySelector("svg")
-        const currentHeading = svg
-          ? parseFloat(svg.style.transform.replace("rotate(", "").replace("deg)", "")) || 0
-          : 0
+        const markerEl = existing.getElement()
+        const svgEl = markerEl.querySelector("svg")
 
-        if (currentPos.lat !== loc.lat || currentPos.lng !== loc.lng) {
+        let currentHeading = 0
+        if (svgEl) {
+          const match = svgEl.style.transform.match(/rotate\(([\d.-]+)deg\)/)
+          currentHeading = match ? parseFloat(match[1]) : 0
+        }
+
+        const newHeading = loc.heading ?? currentHeading
+
+        if (currentPos.lat !== loc.lat || currentPos.lng !== loc.lng || newHeading !== currentHeading) {
           startAnim(
             vehicle.id,
             currentPos.lng, currentPos.lat,
             loc.lng, loc.lat,
-            currentHeading, loc.heading ?? currentHeading
+            currentHeading, newHeading
           )
         }
-        const markerEl = existing.getElement()
-        const color = vehicle.online ? (vehicle.color ?? "#3b82f6") : "#6b7280"
-        const size = selectedVehicleId === vehicle.id ? 40 : 32
-        const type = getVehicleType(vehicle.name)
-        const svgContent = getVehicleSvg(type, color)
-        markerEl.innerHTML = `
-          <div style="
-            width: ${size}px; height: ${size}px;
-            cursor: pointer; position: relative;
-            filter: drop-shadow(0 2px 6px rgba(0,0,0,0.35));
-            will-change: transform;
-          ">
-            <svg viewBox="0 0 24 24" width="100%" height="100%"
-              style="display:block;will-change:transform">
-              ${svgContent}
-            </svg>
-            ${vehicle.online ? `<div style="
-              position:absolute;top:-2px;right:-2px;
-              width:8px;height:8px;border-radius:50%;
-              background:#22c55e;
-              box-shadow:0 0 6px rgba(34,197,94,0.6);
-            "></div>` : ""}
-          </div>
-        `
+
+        const container = markerEl.firstElementChild as HTMLElement
+        if (!container) return
+        const svg = container.querySelector("svg")
+        if (!svg) return
+
+        const isSelected = selectedVehicleId === vehicle.id
+        const expectedSize = isSelected ? 40 : 32
+        if (container.style.width !== `${expectedSize}px`) {
+          container.style.width = `${expectedSize}px`
+          container.style.height = `${expectedSize}px`
+        }
+
+        const isOnline = vehicle.online
+        const dot = container.querySelector("div")
+        if (isOnline && !dot) {
+          const newDot = document.createElement("div")
+          newDot.style.cssText = "position:absolute;top:-2px;right:-2px;width:8px;height:8px;border-radius:50%;background:#22c55e;box-shadow:0 0 6px rgba(34,197,94,0.6)"
+          container.appendChild(newDot)
+        } else if (!isOnline && dot) {
+          dot.remove()
+        }
+
         existing.setPopup(
           new maplibregl.Popup({
             offset: 20,
@@ -232,7 +237,7 @@ export function MapView({
         const el = createMarkerElement(vehicle, selectedVehicleId === vehicle.id)
         el.addEventListener("click", () => onVehicleClick?.(vehicle.id))
 
-        const marker = new maplibregl.Marker({ element: el })
+        const marker = new maplibregl.Marker({ element: el, anchor: "center" })
           .setLngLat([loc.lng, loc.lat])
           .setPopup(
             new maplibregl.Popup({

@@ -7,6 +7,9 @@ import "maplibre-gl/dist/maplibre-gl.css"
 import { Play, Pause, SkipBack, SkipForward, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
+import { MapStyleSwitcher } from "./map-style-switcher"
+import type { MapStyle } from "@/lib/map-styles"
+import { getMapStyle } from "@/lib/map-styles"
 
 interface LocationPoint {
   id: string
@@ -64,6 +67,7 @@ export function RouteReplayMap({
   const [speed, setSpeed] = useState<number>(2)
   const [progress, setProgress] = useState(0)
   const [currentIdx, setCurrentIdx] = useState(0)
+  const [styleId, setStyleId] = useState("street")
   const progressRef = useRef(0)
   const currentIdxRef = useRef(0)
 
@@ -124,9 +128,10 @@ export function RouteReplayMap({
   useEffect(() => {
     if (!mapContainer.current || mapRef.current) return
 
+    const initialStyle = getMapStyle(styleId)
     const map = new maplibregl.Map({
       container: mapContainer.current,
-      style: "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json",
+      style: initialStyle.style as any,
       center: locations.length > 0
         ? [locations[0].lng, locations[0].lat]
         : [106.865, -6.2088],
@@ -316,6 +321,30 @@ export function RouteReplayMap({
 
   const currentLoc = locations[currentIdx]
 
+  const handleStyleChange = useCallback(
+    (style: MapStyle) => {
+      setStyleId(style.id)
+      const map = mapRef.current
+      if (!map) return
+      map.setStyle(style.style as any)
+      map.once("style.load", () => {
+        if (locations.length > 0) {
+          const existed = markerRef.current
+          if (existed) {
+            existed.addTo(map)
+          } else {
+            const el = createAnimatedMarker(vehicleColor)
+            markerRef.current = new maplibregl.Marker({ element: el })
+              .setLngLat([locations[currentIdxRef.current]?.lng ?? locations[0].lng, locations[currentIdxRef.current]?.lat ?? locations[0].lat])
+              .addTo(map)
+          }
+          drawRoute(map)
+        }
+      })
+    },
+    [vehicleColor, locations, drawRoute]
+  )
+
   if (isLoading) {
     return (
       <div className="h-full rounded-xl bg-muted animate-pulse flex items-center justify-center">
@@ -338,7 +367,11 @@ export function RouteReplayMap({
     <div className="h-full w-full relative rounded-xl overflow-hidden border border-border/50">
       <div ref={mapContainer} className="h-full w-full" />
 
-      <div className="absolute top-3 left-3 z-10">
+      <div className="absolute top-3 left-3 z-10 flex items-start gap-2">
+        <MapStyleSwitcher
+          currentStyle={styleId}
+          onStyleChange={handleStyleChange}
+        />
         <Card className="px-3 py-1.5 bg-background/90 backdrop-blur-sm">
           <p className="text-sm font-medium">{vehicleName}</p>
           <p className="text-xs text-muted-foreground">

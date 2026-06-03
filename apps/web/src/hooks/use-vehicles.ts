@@ -19,11 +19,6 @@ interface UseVehiclesReturn {
   refetch: () => void
 }
 
-const hasSupabase =
-  typeof window !== "undefined" &&
-  !!process.env.NEXT_PUBLIC_SUPABASE_URL &&
-  !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-
 export function useVehicles(): UseVehiclesReturn {
   const queryClient = useQueryClient()
   const pollingRef = useRef<ReturnType<typeof setInterval>>()
@@ -36,25 +31,28 @@ export function useVehicles(): UseVehiclesReturn {
   } = useQuery({
     queryKey: ["vehicles"],
     queryFn: fetchVehicles,
-    staleTime: 30 * 1000,
+    staleTime: 15 * 1000,
+    refetchInterval: 15_000,
   })
 
   const handleLocation = useCallback(
     (msg: { vehicleId: string; location: any }) => {
+      if (!msg.vehicleId || !msg.location) return
       queryClient.setQueryData<VehicleWithStatus[]>(["vehicles"], (prev) =>
-        (prev ?? []).map((v) =>
-          v.id === msg.vehicleId
-            ? { ...v, latestLocation: msg.location, online: true }
-            : v
-        )
+        (prev ?? []).map((v) => {
+          if (v.id !== msg.vehicleId) return v
+          const existing = v.latestLocation
+          const latSame = existing?.lat === msg.location.lat
+          const lngSame = existing?.lng === msg.location.lng
+          if (latSame && lngSame) return v
+          return { ...v, latestLocation: msg.location }
+        })
       )
     },
     [queryClient]
   )
 
   useEffect(() => {
-    if (hasSupabase) return
-
     pollingRef.current = setInterval(() => {
       refetch()
     }, 10_000)
