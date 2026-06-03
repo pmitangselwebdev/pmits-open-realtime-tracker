@@ -10,6 +10,7 @@ import { VehicleDialog } from "@/components/dashboard/vehicle-dialog"
 import { StatusBadge } from "@/components/dashboard/status-badge"
 import { Truck, Search, Pencil } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { getVehicleType } from "@/lib/vehicle-markers"
 
 export default function VehiclesPage() {
   const { vehicles, isLoading } = useVehicles()
@@ -31,7 +32,7 @@ export default function VehiclesPage() {
     return matchesSearch && matchesFilter
   })
 
-  async function handleAdd(data: { name: string; plate: string; uniqueId: string; color: string }) {
+  async function handleAdd(data: { name: string; plate: string; uniqueId: string; color: string; icon: string }) {
     const res = await fetch("/api/vehicles", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -44,7 +45,7 @@ export default function VehiclesPage() {
     queryClient.invalidateQueries({ queryKey: ["vehicles"] })
   }
 
-  async function handleEdit(id: string, data: { name: string; plate: string; uniqueId: string; color: string }) {
+  async function handleEdit(id: string, data: { name: string; plate: string; uniqueId: string; color: string; icon: string }) {
     const res = await fetch(`/api/vehicles/${id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
@@ -141,10 +142,17 @@ export default function VehiclesPage() {
                       backgroundColor: (vehicle.color ?? "#dc2626") + "20",
                     }}
                   >
-                    <Truck
-                      className="h-5 w-5"
-                      style={{ color: vehicle.color ?? "#dc2626" }}
-                    />
+                    <span className="text-lg" title={vehicle.icon ?? ""}>
+                      {getVehicleType(vehicle.name, vehicle.icon) === "ambulance" ? "🚑" :
+                       getVehicleType(vehicle.name, vehicle.icon) === "rescue" ? "🚙" :
+                       getVehicleType(vehicle.name, vehicle.icon) === "tanker" ? "🚚" :
+                       getVehicleType(vehicle.name, vehicle.icon) === "command" ? "📡" :
+                       getVehicleType(vehicle.name, vehicle.icon) === "truck" ? "📦" :
+                       getVehicleType(vehicle.name, vehicle.icon) === "van" ? "🚐" :
+                       getVehicleType(vehicle.name, vehicle.icon) === "suv" ? "🛻" :
+                       getVehicleType(vehicle.name, vehicle.icon) === "pickup" ? "🚛" :
+                       getVehicleType(vehicle.name, vehicle.icon) === "motor" ? "🏍️" : "🚗"}
+                    </span>
                   </div>
 
                   <div className="flex-1 min-w-0 grid grid-cols-1 sm:grid-cols-3 gap-1 sm:gap-4">
@@ -183,6 +191,7 @@ export default function VehiclesPage() {
                         plate: vehicle.plate,
                         uniqueId: vehicle.uniqueId,
                         color: vehicle.color ?? "#dc2626",
+                        icon: vehicle.icon ?? "",
                       }}
                       onSave={(data) => handleEdit(vehicle.id, data)}
                       onDelete={() => handleDelete(vehicle.id)}

@@ -17,7 +17,7 @@ export function MapMarker({ vehicle, isSelected, onClick }: MapMarkerProps) {
   const heading = loc.heading ?? 0
   const color = vehicle.color ?? "#dc2626"
   const size = isSelected ? 52 : 42
-  const type = getVehicleType(vehicle.name)
+  const type = getVehicleType(vehicle.name, vehicle.icon)
   const svg = getVehicleSvg(type, color, vehicle.online)
 
   return (

@@ -12,7 +12,11 @@ const LIGHT_BAR = `<rect x="-1" y="-1" width="18" height="5" rx="1.5" fill="#ff6
 <rect x="7" y="0" width="4" height="3" rx="0.8" fill="#fff" fill-opacity="0.4"/>
 <rect x="13" y="0" width="4" height="3" rx="0.8" fill="#fff" fill-opacity="0.4"/>`
 
-export function getVehicleType(name: string): string {
+const VEHICLE_TYPES = ["ambulance", "rescue", "tanker", "command", "truck", "van", "suv", "pickup", "motor", "car"] as const
+export type VehicleIconType = (typeof VEHICLE_TYPES)[number]
+
+export function getVehicleType(name: string, explicitType?: string | null): VehicleIconType {
+  if (explicitType && VEHICLE_TYPES.includes(explicitType as VehicleIconType)) return explicitType as VehicleIconType
   const n = name.toLowerCase()
   if (["ambulan", "ambulance", "amb", "mobil jenazah", "jenazah", "korban"].some((k) => n.includes(k))) return "ambulance"
   if (["tanker", "tandon", "water", "air bersih", "tangki"].some((k) => n.includes(k))) return "tanker"
@@ -262,6 +266,7 @@ export function createMarkerHtml(
     id: string
     name: string
     color?: string | null
+    icon?: string | null
     online?: boolean
     latestLocation?: { heading?: number | null; lat: number; lng: number } | null
   },
@@ -272,7 +277,7 @@ export function createMarkerHtml(
 
   const heading = loc.heading ?? 0
   const color = vehicle.color ?? "#dc2626"
-  const type = getVehicleType(vehicle.name)
+  const type = getVehicleType(vehicle.name, vehicle.icon)
   const svg = getVehicleSvg(type, color, vehicle.online ?? false)
   const size = isSelected ? 52 : 42
 
