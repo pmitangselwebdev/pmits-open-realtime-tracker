@@ -2,7 +2,7 @@ const COLOR_OFFLINE = "#6b7280"
 const ROOF_COLOR = "#f1f3f5"
 const ROOF_SHADOW = "rgba(0,0,0,0.06)"
 
-const RED_CROSS = `<g fill="${0}">
+const RED_CROSS = `<g fill="\${0}">
   <rect x="5" y="11" width="6" height="18" rx="1.2" />
   <rect x="2" y="14" width="12" height="12" rx="1.2" />
 </g>`
@@ -38,7 +38,7 @@ const VEHICLE_SVGS: Record<string, string> = {
   <path d="M14,6 L18,12 L22,12 L26,6 Z" fill="rgba(0,0,0,0.08)"/>
   <rect x="14" y="14" width="12" height="18" rx="1" fill="rgba(0,0,0,0.02)"/>
   <!-- Red Cross on roof -->
-  <g transform="translate(14, 15)" fill="${0}">
+  <g transform="translate(14, 15)" fill="\${0}">
     <rect x="2" y="3" width="4" height="10" rx="1"/>
     <rect x="0" y="5" width="8" height="6" rx="1"/>
   </g>
@@ -57,7 +57,7 @@ const VEHICLE_SVGS: Record<string, string> = {
   <path d="M12,8 L12,12 L17,12 L17,8 Z" fill="rgba(0,0,0,0.04)"/>
   <path d="M23,8 L23,12 L28,12 L28,8 Z" fill="rgba(0,0,0,0.04)"/>
   <!-- Red Cross on hood -->
-  <g transform="translate(10, 19)" fill="${0}">
+  <g transform="translate(10, 19)" fill="\${0}">
     <rect x="5" y="0" width="4" height="10" rx="1"/>
     <rect x="3" y="2" width="8" height="6" rx="1"/>
   </g>
@@ -88,7 +88,7 @@ const VEHICLE_SVGS: Record<string, string> = {
   <rect x="20" y="4" width="14" height="1.5" fill="rgba(0,0,0,0.04)"/>
   <rect x="20" y="24.5" width="14" height="1.5" fill="rgba(0,0,0,0.04)"/>
   <!-- Red Cross on tank -->
-  <g transform="translate(22, 9)" fill="${0}">
+  <g transform="translate(22, 9)" fill="\${0}">
     <rect x="2" y="2" width="3" height="8" rx="0.8"/>
     <rect x="0.5" y="3.5" width="6" height="5" rx="0.8"/>
   </g>
@@ -109,15 +109,15 @@ const VEHICLE_SVGS: Record<string, string> = {
   <path d="M12,6 L16,12 L24,12 L28,6 Z" fill="rgba(0,0,0,0.05)"/>
   <rect x="12" y="18" width="16" height="14" rx="1" fill="rgba(0,0,0,0.02)"/>
   <!-- Red Cross large on roof -->
-  <g transform="translate(13, 20)" fill="${0}">
+  <g transform="translate(13, 20)" fill="\${0}">
     <rect x="3" y="1" width="4" height="12" rx="1.2"/>
     <rect x="1" y="3" width="8" height="8" rx="1.2"/>
   </g>
   <!-- Antennas -->
   <line x1="15" y1="4" x2="14" y2="0" stroke="rgba(0,0,0,0.2)" stroke-width="1"/>
   <line x1="25" y1="4" x2="26" y2="0" stroke="rgba(0,0,0,0.2)" stroke-width="1"/>
-  <circle cx="14" cy="0" r="1" fill="${0}" fill-opacity="0.6"/>
-  <circle cx="26" cy="0" r="1.2" fill="${0}" fill-opacity="0.6"/>
+  <circle cx="14" cy="0" r="1" fill="\${0}" fill-opacity="0.6"/>
+  <circle cx="26" cy="0" r="1.2" fill="\${0}" fill-opacity="0.6"/>
   <!-- Satellite dish on roof -->
   <ellipse cx="20" cy="6" rx="3" ry="2" fill="rgba(0,0,0,0.04)"/>
   <path d="M20,4 L20,2" stroke="rgba(0,0,0,0.15)" stroke-width="0.8"/>
@@ -137,7 +137,7 @@ const VEHICLE_SVGS: Record<string, string> = {
   <path d="M11,10 L11,14 L15,14 L15,10 Z" fill="rgba(0,0,0,0.04)"/>
   <path d="M25,10 L25,14 L29,14 L29,10 Z" fill="rgba(0,0,0,0.04)"/>
   <!-- Small Red Cross on roof -->
-  <g transform="translate(16, 18)" fill="${0}" fill-opacity="0.5">
+  <g transform="translate(16, 18)" fill="\${0}" fill-opacity="0.5">
     <rect x="2" y="1" width="2" height="6" rx="0.5"/>
     <rect x="1" y="2" width="4" height="4" rx="0.5"/>
   </g>
@@ -152,7 +152,7 @@ const VEHICLE_SVGS: Record<string, string> = {
   <path d="M10,6 Q8,8 8,14 L8,16 L32,16 L32,14 Q32,8 30,6 Z" fill="rgba(0,0,0,0.08)"/>
   <rect x="12" y="22" width="16" height="3" rx="1" fill="rgba(255,255,255,0.08)"/>
   <!-- Red Cross on SUV -->
-  <g transform="translate(15, 10)" fill="${0}" fill-opacity="0.6">
+  <g transform="translate(15, 10)" fill="\${0}" fill-opacity="0.6">
     <rect x="2" y="1" width="3" height="8" rx="0.8"/>
     <rect x="0.5" y="2.5" width="6" height="5" rx="0.8"/>
   </g>
@@ -166,7 +166,7 @@ const VEHICLE_SVGS: Record<string, string> = {
   <path d="M8,10 L8,26 L14,34 L26,34 L32,26 L32,10 Z" fill="rgba(0,0,0,0.03)"/>
   <rect x="9" y="6" width="22" height="4" rx="1.5" fill="rgba(0,0,0,0.06)"/>
   <!-- Red Cross on van -->
-  <g transform="translate(15, 16)" fill="${0}" fill-opacity="0.5">
+  <g transform="translate(15, 16)" fill="\${0}" fill-opacity="0.5">
     <rect x="2" y="1" width="3" height="8" rx="0.8"/>
     <rect x="0.5" y="2.5" width="6" height="5" rx="0.8"/>
   </g>
@@ -182,7 +182,7 @@ const VEHICLE_SVGS: Record<string, string> = {
   <rect x="20" y="3" width="14" height="26" rx="1.5" fill="${ROOF_COLOR}" stroke="${ROOF_SHADOW}" stroke-width="0.5"/>
   <rect x="22" y="6" width="10" height="20" rx="1" fill="rgba(0,0,0,0.02)"/>
   <!-- Red Cross on cargo box -->
-  <g transform="translate(23, 10)" fill="${0}">
+  <g transform="translate(23, 10)" fill="\${0}">
     <rect x="2" y="2" width="3" height="8" rx="0.8"/>
     <rect x="0.5" y="3.5" width="6" height="5" rx="0.8"/>
   </g>
@@ -204,7 +204,7 @@ const VEHICLE_SVGS: Record<string, string> = {
   <line x1="23" y1="12" x2="32" y2="12" stroke="rgba(0,0,0,0.04)" stroke-width="0.5"/>
   <line x1="23" y1="18" x2="32" y2="18" stroke="rgba(0,0,0,0.04)" stroke-width="0.5"/>
   <!-- Red Cross on pickup bed -->
-  <g transform="translate(25, 7)" fill="${0}" fill-opacity="0.5">
+  <g transform="translate(25, 7)" fill="\${0}" fill-opacity="0.5">
     <rect x="1" y="1" width="2" height="6" rx="0.5"/>
     <rect x="0" y="2" width="4" height="4" rx="0.5"/>
   </g>
@@ -223,7 +223,7 @@ const VEHICLE_SVGS: Record<string, string> = {
   <rect x="11" y="18" width="18" height="4" rx="2" fill="${ROOF_COLOR}" stroke="${ROOF_SHADOW}" stroke-width="0.5"/>
   <rect x="11" y="18" width="18" height="2" rx="1" fill="rgba(0,0,0,0.03)"/>
   <!-- Red Cross on top box -->
-  <g transform="translate(12, 19)" fill="${0}" fill-opacity="0.5">
+  <g transform="translate(12, 19)" fill="\${0}" fill-opacity="0.5">
     <rect x="1" y="0" width="2" height="4" rx="0.5"/>
     <rect x="0" y="1" width="4" height="2" rx="0.5"/>
   </g>

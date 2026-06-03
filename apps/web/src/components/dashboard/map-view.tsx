@@ -139,24 +139,10 @@ export function MapView({
           )
         }
 
-        const container = existing.getElement().firstElementChild as HTMLElement
-        if (!container) return
-
         const isSelected = selectedVehicleId === vehicle.id
-        const expectedSize = isSelected ? 52 : 42
-        if (container.style.width !== `${expectedSize}px`) {
-          container.style.width = `${expectedSize}px`
-          container.style.height = `${expectedSize}px`
-        }
-
-        const isOnline = vehicle.online
-        const dot = container.querySelector("div")
-        if (isOnline && !dot) {
-          const newDot = document.createElement("div")
-          newDot.style.cssText = "position:absolute;top:-2px;right:-2px;width:8px;height:8px;border-radius:50%;background:#22c55e;box-shadow:0 0 6px rgba(34,197,94,0.6)"
-          container.appendChild(newDot)
-        } else if (!isOnline && dot) {
-          dot.remove()
+        const newHtml = createMarkerHtml(vehicle, isSelected)
+        if (existing.getElement().innerHTML !== newHtml) {
+          existing.getElement().innerHTML = newHtml
         }
 
         existing.setPopup(
@@ -249,23 +235,15 @@ export function MapView({
 
     return () => {
       if (rafRef.current) cancelAnimationFrame(rafRef.current)
-      map.remove()
+      try { map.remove() } catch {}
       mapRef.current = null
       markersRef.current.clear()
       animsRef.current.clear()
     }
-  }, [diffMarkers])
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!mapReady) return
-    const map = mapRef.current
-    if (!map || !map.isStyleLoaded()) {
-      const onLoad = () => diffMarkers()
-      map?.on("style.load", onLoad)
-      return () => {
-        map?.off("style.load", onLoad)
-      }
-    }
     diffMarkers()
   }, [diffMarkers, mapReady])
 
