@@ -4,6 +4,7 @@ import { useState } from "react"
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -110,6 +111,11 @@ export function VehicleDialog({
           <DialogTitle>
             {mode === "add" ? "Add Vehicle" : "Edit Vehicle"}
           </DialogTitle>
+          <DialogDescription>
+            {mode === "add"
+              ? "Add a new vehicle to your fleet"
+              : "Edit vehicle details"}
+          </DialogDescription>
         </DialogHeader>
         <div className="space-y-4 py-2">
           <div className="space-y-2">
