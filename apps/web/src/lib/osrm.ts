@@ -1,9 +1,6 @@
 const OSRM_BASE = process.env.OSRM_BASE_URL ?? "https://router.project-osrm.org"
 
-const BATCH_SIZE = 80
-const OVERLAP = 3
-const MAX_MATCH_POINTS = 300
-const TIMEOUT = 15000
+const TIMEOUT = 10000
 
 interface OSRMMatchResponse {
   code: string
@@ -16,24 +13,10 @@ interface OSRMMatchResponse {
   }>
 }
 
-function isValidCoord(c: [number, number]): boolean {
-  return (
-    Number.isFinite(c[0]) &&
-    Number.isFinite(c[1]) &&
-    Math.abs(c[0]) <= 180 &&
-    Math.abs(c[1]) <= 90
-  )
-}
-
-function isValidCoords(coords: [number, number][]): boolean {
-  return coords.length >= 2 && coords.every(isValidCoord)
-}
-
-async function matchBatch(coords: [number, number][]): Promise<{
+export async function matchRoute(
   coords: [number, number][]
-  distance: number
-} | null> {
-  if (!isValidCoords(coords)) return null
+): Promise<{ coords: [number, number][]; distance: number } | null> {
+  if (coords.length < 2) return null
 
   const coordsStr = coords.map((c) => `${c[0]},${c[1]}`).join(";")
   const url =
@@ -45,16 +28,15 @@ async function matchBatch(coords: [number, number][]): Promise<{
     const data: OSRMMatchResponse = await res.json()
 
     if (data.code === "Ok" && data.matchings?.length) {
-      const result: [number, number][] = []
-      let totalDist = 0
+      const points: [number, number][] = []
+      let dist = 0
       for (const m of data.matchings) {
-        const g = m.geometry.coordinates
-        if (g.length > 0 && g.every(isValidCoord)) {
-          result.push(...g)
-          totalDist += m.distance ?? 0
+        if (m.geometry.coordinates.length > 0) {
+          points.push(...m.geometry.coordinates)
+          dist += m.distance ?? 0
         }
       }
-      return result.length > 1 ? { coords: result, distance: totalDist } : null
+      return points.length > 1 ? { coords: points, distance: dist } : null
     }
     return null
   } catch {
@@ -62,60 +44,7 @@ async function matchBatch(coords: [number, number][]): Promise<{
   }
 }
 
-export async function matchRoute(
-  coords: [number, number][]
-): Promise<{ coords: [number, number][]; distance: number } | null> {
-  if (!isValidCoords(coords)) return null
-
-  const sampled = coords.length > MAX_MATCH_POINTS
-    ? sampleCoords(coords, MAX_MATCH_POINTS)
-    : coords
-
-  if (sampled.length <= BATCH_SIZE) {
-    return matchBatch(sampled)
-  }
-
-  const step = BATCH_SIZE - OVERLAP
-  const matched: [number, number][] = []
-  let totalDist = 0
-
-  for (let i = 0; i < sampled.length; i += step) {
-    const batch = sampled.slice(i, i + BATCH_SIZE)
-    if (batch.length < 2) continue
-
-    const result = await matchBatch(batch)
-    if (!result) continue
-
-    totalDist += result.distance
-
-    if (matched.length > 0 && result.coords.length > OVERLAP) {
-      matched.push(...result.coords.slice(OVERLAP))
-    } else {
-      matched.push(...result.coords)
-    }
-  }
-
-  return matched.length > 1
-    ? { coords: matched, distance: totalDist }
-    : null
-}
-
-function sampleCoords(
-  coords: [number, number][],
-  maxPoints: number
-): [number, number][] {
-  if (coords.length <= maxPoints) return coords
-  const step = (coords.length - 1) / (maxPoints - 1)
-  const result: [number, number][] = [coords[0]]
-  for (let i = 1; i < maxPoints - 1; i++) {
-    const idx = Math.round(i * step)
-    result.push(coords[idx])
-  }
-  result.push(coords[coords.length - 1])
-  return result
-}
-
-export function calculateMatchedDistance(coords: [number, number][]): number {
+export function calculateDistance(coords: [number, number][]): number {
   if (coords.length < 2) return 0
   let total = 0
   for (let i = 1; i < coords.length; i++) {

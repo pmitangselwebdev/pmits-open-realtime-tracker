@@ -37,41 +37,34 @@ export default function HistoryPage() {
   const color = selectedVehicle?.color ?? "#3b82f6"
   const name = selectedVehicle?.name ?? ""
 
-  const [snapToRoads, setSnapToRoads] = useState(false)
-
   const { data, isLoading } = useQuery({
-    queryKey: ["locations", "replay", selectedVehicleId, datePreset, snapToRoads],
+    queryKey: ["locations", "replay", selectedVehicleId, datePreset],
     queryFn: async () => {
-      if (!selectedVehicleId) return { locations: [], hasMore: false, matchedRoute: null, matchedDistance: null }
+      if (!selectedVehicleId) {
+        return { locations: [], hasMore: false, route: [], distance: 0 }
+      }
       const params = new URLSearchParams({
         vehicleId: selectedVehicleId,
         after: afterDate.toISOString(),
         replay: "true",
         limit: "2000",
       })
-      if (snapToRoads) params.set("match", "true")
       const res = await fetch(`/api/locations?${params}`)
       if (!res.ok) throw new Error("Failed to fetch history")
       return res.json() as Promise<{
         locations: any[]
         hasMore: boolean
-        matchedRoute: [number, number][] | null
-        matchedDistance: number | null
+        route: [number, number][]
+        distance: number
       }>
     },
     enabled: !!selectedVehicleId,
-    staleTime: snapToRoads ? 0 : 5 * 60 * 1000,
+    staleTime: 5 * 60 * 1000,
   })
 
   const locations = data?.locations ?? []
-  const matchedRoute = data?.matchedRoute ?? null
-  const matchedDistance = data?.matchedDistance ?? null
-  const totalDistance =
-    matchedDistance != null
-      ? matchedDistance / 1000
-      : locations.length > 1
-        ? calculateDistance(locations)
-        : 0
+  const route = data?.route ?? null
+  const totalDistance = data?.distance ?? 0
   const duration =
     locations.length > 1
       ? (new Date(locations[locations.length - 1].timestamp).getTime() -
@@ -101,15 +94,6 @@ export default function HistoryPage() {
             </Button>
           ))}
         </div>
-        <Button
-          variant={snapToRoads ? "default" : "outline"}
-          size="sm"
-          onClick={() => setSnapToRoads(!snapToRoads)}
-          disabled={!selectedVehicleId}
-        >
-          <Route className="h-4 w-4 mr-1.5" />
-          Snap to Roads
-        </Button>
       </div>
 
       <div className="flex flex-col lg:flex-row gap-4 flex-1 min-h-0">
@@ -160,7 +144,7 @@ export default function HistoryPage() {
                   vehicleName={name}
                   vehicleColor={color}
                   isLoading={isLoading}
-                  matchedRoute={matchedRoute}
+                  route={route}
                 />
               </div>
 
