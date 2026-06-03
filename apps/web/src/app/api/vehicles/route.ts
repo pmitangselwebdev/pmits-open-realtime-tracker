@@ -30,7 +30,7 @@ export async function GET() {
     orderBy: { createdAt: "desc" },
   })
 
-  const onlineThreshold = new Date(Date.now() - 60 * 1000)
+  const onlineThreshold = new Date(Date.now() - 3 * 60 * 1000)
 
   const result = vehicles.map(({ locations, ...rest }) => ({
     ...rest,

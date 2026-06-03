@@ -20,8 +20,6 @@ interface AnimState {
   fromLat: number
   toLng: number
   toLat: number
-  fromHeading: number
-  toHeading: number
   startTime: number
   duration: number
 }
@@ -89,13 +87,6 @@ function createMarkerElement(
   return el
 }
 
-function lerpAngle(a: number, b: number, t: number): number {
-  let diff = b - a
-  if (diff > 180) diff -= 360
-  if (diff < -180) diff += 360
-  return a + diff * t
-}
-
 export function MapView({
   vehicles,
   selectedVehicleId,
@@ -133,11 +124,8 @@ export function MapView({
 
       const lng = anim.fromLng + (anim.toLng - anim.fromLng) * eased
       const lat = anim.fromLat + (anim.toLat - anim.fromLat) * eased
-      const heading = lerpAngle(anim.fromHeading, anim.toHeading, eased)
 
       marker.setLngLat([lng, lat])
-      const svg = marker.getElement().querySelector("svg")
-      if (svg) svg.style.transform = `rotate(${heading}deg)`
 
       if (t < 1) hasActive = true
     }
@@ -149,10 +137,9 @@ export function MapView({
     }
   }, [])
 
-  function startAnim(vehicleId: string, fromLng: number, fromLat: number, toLng: number, toLat: number, fromHeading: number, toHeading: number) {
+  function startAnim(vehicleId: string, fromLng: number, fromLat: number, toLng: number, toLat: number) {
     animsRef.current.set(vehicleId, {
       fromLng, fromLat, toLng, toLat,
-      fromHeading, toHeading,
       startTime: performance.now(),
       duration: 150,
     })
@@ -160,6 +147,13 @@ export function MapView({
     if (!rafRef.current) {
       rafRef.current = requestAnimationFrame(tick)
     }
+  }
+
+  function setHeading(vehicleId: string, heading: number) {
+    const marker = markersRef.current.get(vehicleId)
+    if (!marker) return
+    const svg = marker.getElement().querySelector("svg")
+    if (svg) svg.style.transform = `rotate(${heading}deg)`
   }
 
   const diffMarkers = useCallback(() => {
@@ -184,30 +178,20 @@ export function MapView({
       const existing = markersRef.current.get(vehicle.id)
       if (existing) {
         const currentPos = existing.getLngLat()
-        const markerEl = existing.getElement()
-        const svgEl = markerEl.querySelector("svg")
+        const newHeading = loc.heading ?? 0
 
-        let currentHeading = 0
-        if (svgEl) {
-          const match = svgEl.style.transform.match(/rotate\(([\d.-]+)deg\)/)
-          currentHeading = match ? parseFloat(match[1]) : 0
-        }
+        setHeading(vehicle.id, newHeading)
 
-        const newHeading = loc.heading ?? currentHeading
-
-        if (currentPos.lat !== loc.lat || currentPos.lng !== loc.lng || newHeading !== currentHeading) {
+        if (currentPos.lat !== loc.lat || currentPos.lng !== loc.lng) {
           startAnim(
             vehicle.id,
             currentPos.lng, currentPos.lat,
-            loc.lng, loc.lat,
-            currentHeading, newHeading
+            loc.lng, loc.lat
           )
         }
 
-        const container = markerEl.firstElementChild as HTMLElement
+        const container = existing.getElement().firstElementChild as HTMLElement
         if (!container) return
-        const svg = container.querySelector("svg")
-        if (!svg) return
 
         const isSelected = selectedVehicleId === vehicle.id
         const expectedSize = isSelected ? 40 : 32
@@ -236,6 +220,7 @@ export function MapView({
       } else {
         const el = createMarkerElement(vehicle, selectedVehicleId === vehicle.id)
         el.addEventListener("click", () => onVehicleClick?.(vehicle.id))
+        setHeading(vehicle.id, loc.heading ?? 0)
 
         const marker = new maplibregl.Marker({ element: el, anchor: "center" })
           .setLngLat([loc.lng, loc.lat])
@@ -335,9 +320,13 @@ export function MapView({
     diffMarkers()
   }, [diffMarkers, mapReady])
 
+  const prevSelectedId = useRef<string | null>(null)
+
   useEffect(() => {
     const map = mapRef.current
     if (!map || !selectedVehicleId || !mapReady) return
+    if (selectedVehicleId === prevSelectedId.current) return
+    prevSelectedId.current = selectedVehicleId
 
     const vehicle = vehicles.find((v) => v.id === selectedVehicleId)
     if (!vehicle?.latestLocation) return
@@ -347,7 +336,7 @@ export function MapView({
       zoom: 15,
       duration: 1000,
     })
-  }, [selectedVehicleId, vehicles, mapReady])
+  }, [selectedVehicleId, mapReady])
 
   return (
     <div className="h-full w-full relative">

@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useRef } from "react"
+import { useCallback } from "react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import type { VehicleWithStatus } from "shared"
 import { useRealtime } from "./use-realtime"
@@ -21,7 +21,6 @@ interface UseVehiclesReturn {
 
 export function useVehicles(): UseVehiclesReturn {
   const queryClient = useQueryClient()
-  const pollingRef = useRef<ReturnType<typeof setInterval>>()
 
   const {
     data: vehicles = [],
@@ -31,8 +30,8 @@ export function useVehicles(): UseVehiclesReturn {
   } = useQuery({
     queryKey: ["vehicles"],
     queryFn: fetchVehicles,
-    staleTime: 15 * 1000,
-    refetchInterval: 15_000,
+    staleTime: 10 * 1000,
+    refetchInterval: 10_000,
   })
 
   const handleLocation = useCallback(
@@ -44,21 +43,14 @@ export function useVehicles(): UseVehiclesReturn {
           const existing = v.latestLocation
           const latSame = existing?.lat === msg.location.lat
           const lngSame = existing?.lng === msg.location.lng
-          if (latSame && lngSame) return v
+          const headingSame = existing?.heading === msg.location.heading
+          if (latSame && lngSame && headingSame) return v
           return { ...v, latestLocation: msg.location }
         })
       )
     },
     [queryClient]
   )
-
-  useEffect(() => {
-    pollingRef.current = setInterval(() => {
-      refetch()
-    }, 10_000)
-
-    return () => clearInterval(pollingRef.current)
-  }, [refetch])
 
   useRealtime({
     channel: "locations",
