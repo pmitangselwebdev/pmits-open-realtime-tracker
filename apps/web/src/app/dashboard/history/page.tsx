@@ -52,7 +52,12 @@ export default function HistoryPage() {
       if (snapToRoads) params.set("match", "true")
       const res = await fetch(`/api/locations?${params}`)
       if (!res.ok) throw new Error("Failed to fetch history")
-      return res.json() as Promise<{ locations: any[]; hasMore: boolean; matchedRoute: [number, number][] | null }>
+      return res.json() as Promise<{
+        locations: any[]
+        hasMore: boolean
+        matchedRoute: [number, number][] | null
+        matchedDistance: number | null
+      }>
     },
     enabled: !!selectedVehicleId,
     staleTime: snapToRoads ? 0 : 5 * 60 * 1000,
@@ -60,7 +65,13 @@ export default function HistoryPage() {
 
   const locations = data?.locations ?? []
   const matchedRoute = data?.matchedRoute ?? null
-  const totalDistance = locations.length > 1 ? calculateDistance(locations) : 0
+  const matchedDistance = data?.matchedDistance ?? null
+  const totalDistance =
+    matchedDistance != null
+      ? matchedDistance / 1000
+      : locations.length > 1
+        ? calculateDistance(locations)
+        : 0
   const duration =
     locations.length > 1
       ? (new Date(locations[locations.length - 1].timestamp).getTime() -

@@ -226,12 +226,17 @@ export async function GET(req: Request) {
     const hasMore = locations.length === limit
 
     let matchedRoute: [number, number][] | null = null
+    let matchedDistance: number | null = null
     if (doMatch && replay && locations.length > 1) {
       const coords = locations.map((l) => [l.lng, l.lat] as [number, number])
-      matchedRoute = await matchRoute(coords)
+      const result = await matchRoute(coords)
+      if (result) {
+        matchedRoute = result.coords
+        matchedDistance = result.distance
+      }
     }
 
-    return Response.json({ locations, hasMore, matchedRoute })
+    return Response.json({ locations, hasMore, matchedRoute, matchedDistance })
   } catch {
     return Response.json(
       { error: "Internal server error", code: "INTERNAL_ERROR" },

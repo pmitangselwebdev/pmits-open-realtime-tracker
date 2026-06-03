@@ -80,6 +80,10 @@ export function RouteReplayMap({
   const matchSourceId = "route-matched"
   const matchLayerId = "route-matched-line"
 
+  function isValidCoord(c: [number, number]): boolean {
+    return Number.isFinite(c[0]) && Number.isFinite(c[1]) && Math.abs(c[0]) <= 180 && Math.abs(c[1]) <= 90
+  }
+
   const drawRoute = useCallback((map: maplibregl.Map) => {
     if (locations.length < 2) return
 
@@ -93,43 +97,45 @@ export function RouteReplayMap({
         geometry: { type: "LineString", coordinates: coords },
       })
     } else {
-      map.addSource(polylineSourceId, {
-        type: "geojson",
-        data: {
-          type: "Feature",
-          properties: {},
-          geometry: { type: "LineString", coordinates: coords },
-        },
-      })
+      try {
+        map.addSource(polylineSourceId, {
+          type: "geojson",
+          data: {
+            type: "Feature",
+            properties: {},
+            geometry: { type: "LineString", coordinates: coords },
+          },
+        })
 
-      map.addLayer({
-        id: polylineLayerId,
-        type: "line",
-        source: polylineSourceId,
-        layout: { "line-join": "round", "line-cap": "round" },
-        paint: {
-          "line-color": "#3b82f6",
-          "line-width": 2,
-          "line-opacity": 0.5,
-          "line-dasharray": [2, 4],
-        },
-      })
+        map.addLayer({
+          id: polylineLayerId,
+          type: "line",
+          source: polylineSourceId,
+          layout: { "line-join": "round", "line-cap": "round" },
+          paint: {
+            "line-color": "#3b82f6",
+            "line-width": 2,
+            "line-opacity": 0.5,
+            "line-dasharray": [2, 4],
+          },
+        })
 
-      map.addLayer({
-        id: `${polylineLayerId}-glow`,
-        type: "line",
-        source: polylineSourceId,
-        layout: { "line-join": "round", "line-cap": "round" },
-        paint: {
-          "line-color": "#3b82f6",
-          "line-width": 6,
-          "line-opacity": 0.1,
-        },
-      })
+        map.addLayer({
+          id: `${polylineLayerId}-glow`,
+          type: "line",
+          source: polylineSourceId,
+          layout: { "line-join": "round", "line-cap": "round" },
+          paint: {
+            "line-color": "#3b82f6",
+            "line-width": 6,
+            "line-opacity": 0.1,
+          },
+        })
+      } catch {}
     }
 
-    const hasMatch = matchedRoute && matchedRoute.length > 1
-    const matchSrc = map.getSource(matchSourceId) as maplibregl.GeoJSONSource
+    const hasMatch = matchedRoute && matchedRoute.length > 1 && matchedRoute.every(isValidCoord)
+    const matchSrc = hasMatch ? map.getSource(matchSourceId) as maplibregl.GeoJSONSource : null
     if (hasMatch && matchSrc) {
       matchSrc.setData({
         type: "Feature",
@@ -137,38 +143,40 @@ export function RouteReplayMap({
         geometry: { type: "LineString", coordinates: matchedRoute },
       })
     } else if (hasMatch && !matchSrc) {
-      map.addSource(matchSourceId, {
-        type: "geojson",
-        data: {
-          type: "Feature",
-          properties: {},
-          geometry: { type: "LineString", coordinates: matchedRoute },
-        },
-      })
+      try {
+        map.addSource(matchSourceId, {
+          type: "geojson",
+          data: {
+            type: "Feature",
+            properties: {},
+            geometry: { type: "LineString", coordinates: matchedRoute },
+          },
+        })
 
-      map.addLayer({
-        id: matchLayerId,
-        type: "line",
-        source: matchSourceId,
-        layout: { "line-join": "round", "line-cap": "round" },
-        paint: {
-          "line-color": "#22c55e",
-          "line-width": 4,
-          "line-opacity": 0.9,
-        },
-      })
+        map.addLayer({
+          id: matchLayerId,
+          type: "line",
+          source: matchSourceId,
+          layout: { "line-join": "round", "line-cap": "round" },
+          paint: {
+            "line-color": "#22c55e",
+            "line-width": 4,
+            "line-opacity": 0.9,
+          },
+        })
 
-      map.addLayer({
-        id: `${matchLayerId}-glow`,
-        type: "line",
-        source: matchSourceId,
-        layout: { "line-join": "round", "line-cap": "round" },
-        paint: {
-          "line-color": "#22c55e",
-          "line-width": 8,
-          "line-opacity": 0.25,
-        },
-      })
+        map.addLayer({
+          id: `${matchLayerId}-glow`,
+          type: "line",
+          source: matchSourceId,
+          layout: { "line-join": "round", "line-cap": "round" },
+          paint: {
+            "line-color": "#22c55e",
+            "line-width": 8,
+            "line-opacity": 0.25,
+          },
+        })
+      } catch {}
     }
   }, [locations, matchedRoute])
 
