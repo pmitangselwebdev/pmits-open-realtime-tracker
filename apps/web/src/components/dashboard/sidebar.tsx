@@ -140,7 +140,7 @@ export function Sidebar() {
                   className={cn(
                     "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group",
                     isActive
-                      ? "gradient-accent text-white shadow-lg shadow-blue-500/20"
+                      ? "gradient-accent text-white shadow-lg shadow-red-500/20"
                       : "text-muted-foreground hover:text-foreground hover:bg-accent"
                   )}
                 >

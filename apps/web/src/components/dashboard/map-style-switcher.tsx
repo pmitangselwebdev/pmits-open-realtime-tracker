@@ -64,7 +64,7 @@ export function MapStyleSwitcher({
                         : style.id === "light"
                         ? "bg-slate-100 border-slate-300"
                         : style.id === "street"
-                        ? "bg-blue-100 border-blue-300"
+                        ? "bg-rose-100 border-rose-300"
                         : style.id === "satellite"
                         ? "bg-emerald-800 border-emerald-600"
                         : "bg-amber-100 border-amber-300"

@@ -64,7 +64,7 @@ export function StatCard({
     >
       <Card
         className={cn(
-          "group hover:shadow-lg hover:shadow-blue-500/5 transition-all duration-300",
+          "group hover:shadow-lg hover:shadow-red-500/5 transition-all duration-300",
           className
         )}
       >
