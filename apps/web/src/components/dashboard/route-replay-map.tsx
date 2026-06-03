@@ -10,6 +10,7 @@ import { Card } from "@/components/ui/card"
 import { MapStyleSwitcher } from "./map-style-switcher"
 import type { MapStyle } from "@/lib/map-styles"
 import { getMapStyle } from "@/lib/map-styles"
+import { smoothRoute } from "@/lib/geo"
 
 interface LocationPoint {
   id: string
@@ -25,7 +26,6 @@ interface RouteReplayMapProps {
   vehicleName: string
   vehicleColor: string
   isLoading: boolean
-  route?: [number, number][] | null
 }
 
 const SPEEDS = [1, 2, 5, 10] as const
@@ -59,7 +59,6 @@ export function RouteReplayMap({
   vehicleName,
   vehicleColor,
   isLoading,
-  route: matchedRoute = null,
 }: RouteReplayMapProps) {
   const mapContainer = useRef<HTMLDivElement>(null)
   const mapRef = useRef<maplibregl.Map | null>(null)
@@ -78,13 +77,10 @@ export function RouteReplayMap({
   const routeSourceId = "route-line"
 
   const drawRoute = useCallback((map: maplibregl.Map) => {
-    const coords = matchedRoute && matchedRoute.length > 1
-      ? matchedRoute
-      : locations.length > 1
-        ? locations.map((l) => [l.lng, l.lat] as [number, number])
-        : null
+    if (locations.length < 2) return
 
-    if (!coords) return
+    const rawCoords = locations.map((l) => [l.lng, l.lat] as [number, number])
+    const coords = smoothRoute(rawCoords, 10)
 
     const src = map.getSource(routeSourceId) as maplibregl.GeoJSONSource
     if (src) {
@@ -114,7 +110,7 @@ export function RouteReplayMap({
           paint: {
             "line-color": "#3b82f6",
             "line-width": 4,
-            "line-opacity": 0.8,
+            "line-opacity": 0.85,
           },
         })
 
@@ -125,13 +121,13 @@ export function RouteReplayMap({
           layout: { "line-join": "round", "line-cap": "round" },
           paint: {
             "line-color": "#3b82f6",
-            "line-width": 8,
+            "line-width": 10,
             "line-opacity": 0.2,
           },
         })
       } catch {}
     }
-  }, [locations, matchedRoute])
+  }, [locations])
 
   useEffect(() => {
     if (!mapContainer.current || mapRef.current) return
@@ -385,11 +381,7 @@ export function RouteReplayMap({
           <p className="text-xs text-muted-foreground">
             {currentIdx + 1} / {totalPoints} points
           </p>
-          {matchedRoute && matchedRoute.length > 1 && (
-            <p className="text-xs text-emerald-400 mt-0.5">
-              ● Road matched
-            </p>
-          )}
+
         </Card>
       </div>
 

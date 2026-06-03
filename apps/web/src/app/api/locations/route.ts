@@ -5,7 +5,7 @@ import { supabase } from "@/lib/supabase"
 import { locationSchema, deviceLocationSchema } from "shared"
 import { ZodError } from "zod"
 import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit"
-import { matchRoute, calculateDistance } from "@/lib/osrm"
+import { calculateDistance } from "@/lib/geo"
 
 const LOCATION_BATCH: {
   vehicleId: string
@@ -224,25 +224,13 @@ export async function GET(req: Request) {
 
     const hasMore = locations.length === limit
 
-    let route: [number, number][]
-    let distance: number
-
+    let distance = 0
     if (replay && locations.length > 1) {
       const coords = locations.map((l) => [l.lng, l.lat] as [number, number])
-      const matched = await matchRoute(coords)
-      if (matched) {
-        route = matched.coords
-        distance = matched.distance / 1000
-      } else {
-        route = coords
-        distance = calculateDistance(coords)
-      }
-    } else {
-      route = []
-      distance = 0
+      distance = calculateDistance(coords)
     }
 
-    return Response.json({ locations, hasMore, route, distance })
+    return Response.json({ locations, hasMore, distance })
   } catch {
     return Response.json(
       { error: "Internal server error", code: "INTERNAL_ERROR" },

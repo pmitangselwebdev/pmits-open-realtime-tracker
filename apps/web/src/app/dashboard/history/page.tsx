@@ -41,7 +41,7 @@ export default function HistoryPage() {
     queryKey: ["locations", "replay", selectedVehicleId, datePreset],
     queryFn: async () => {
       if (!selectedVehicleId) {
-        return { locations: [], hasMore: false, route: [], distance: 0 }
+        return { locations: [], hasMore: false, distance: 0 }
       }
       const params = new URLSearchParams({
         vehicleId: selectedVehicleId,
@@ -54,7 +54,6 @@ export default function HistoryPage() {
       return res.json() as Promise<{
         locations: any[]
         hasMore: boolean
-        route: [number, number][]
         distance: number
       }>
     },
@@ -63,7 +62,6 @@ export default function HistoryPage() {
   })
 
   const locations = data?.locations ?? []
-  const route = data?.route ?? null
   const totalDistance = data?.distance ?? 0
   const duration =
     locations.length > 1
@@ -144,7 +142,6 @@ export default function HistoryPage() {
                   vehicleName={name}
                   vehicleColor={color}
                   isLoading={isLoading}
-                  route={route}
                 />
               </div>
 
