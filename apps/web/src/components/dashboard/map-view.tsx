@@ -37,6 +37,15 @@ function createMarkerElement(
   return el
 }
 
+function bearing(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const dLng = (lng2 - lng1) * Math.PI / 180
+  const lat1Rad = lat1 * Math.PI / 180
+  const lat2Rad = lat2 * Math.PI / 180
+  const y = Math.sin(dLng) * Math.cos(lat2Rad)
+  const x = Math.cos(lat1Rad) * Math.sin(lat2Rad) - Math.sin(lat1Rad) * Math.cos(lat2Rad) * Math.cos(dLng)
+  return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360
+}
+
 export function MapView({
   vehicles,
   selectedVehicleId,
@@ -49,6 +58,8 @@ export function MapView({
   const markersRef = useRef<Map<string, L.Marker>>(new Map())
   const animsRef = useRef<Map<string, AnimState>>(new Map())
   const rafRef = useRef<number | null>(null)
+  const headingsRef = useRef<Map<string, number>>(new Map())
+  const lastPositionsRef = useRef<Map<string, { lat: number; lng: number }>>(new Map())
   const [styleId, setStyleId] = useState("street")
   const [mapReady, setMapReady] = useState(false)
 
@@ -77,6 +88,15 @@ export function MapView({
       const lng = anim.fromLng + (anim.toLng - anim.fromLng) * eased
 
       marker.setLatLng([lat, lng])
+
+      const heading = headingsRef.current.get(id)
+      if (heading != null) {
+        const markerEl = marker.getElement()
+        const rotateEl = markerEl?.querySelector(".marker-rotate") as HTMLElement | null
+        if (rotateEl) {
+          rotateEl.style.transform = `rotate(${heading}deg)`
+        }
+      }
 
       if (t < 1) hasActive = true
     }
@@ -119,6 +139,14 @@ export function MapView({
       const loc = vehicle.latestLocation
       if (!loc) return
 
+      const prevPos = lastPositionsRef.current.get(vehicle.id)
+      if (prevPos && (prevPos.lat !== loc.lat || prevPos.lng !== loc.lng)) {
+        headingsRef.current.set(vehicle.id, bearing(prevPos.lat, prevPos.lng, loc.lat, loc.lng))
+      }
+      lastPositionsRef.current.set(vehicle.id, { lat: loc.lat, lng: loc.lng })
+
+      const heading = headingsRef.current.get(vehicle.id)
+
       const existing = markersRef.current.get(vehicle.id)
       if (existing) {
         const currentPos = existing.getLatLng()
@@ -132,7 +160,7 @@ export function MapView({
         }
 
         const isSelected = selectedVehicleId === vehicle.id
-        const newHtml = createMarkerHtml(vehicle, isSelected, loc.heading)
+        const newHtml = createMarkerHtml(vehicle, isSelected, heading)
         const el = existing.getElement()
         if (el && el.innerHTML !== newHtml) {
           el.innerHTML = newHtml
@@ -140,7 +168,7 @@ export function MapView({
 
         existing.setPopupContent(createPopupHtml(vehicle))
       } else {
-        const el = createMarkerElement(vehicle, selectedVehicleId === vehicle.id, loc.heading)
+        const el = createMarkerElement(vehicle, selectedVehicleId === vehicle.id, heading)
         el.addEventListener("click", () => onVehicleClick?.(vehicle.id))
 
         const icon = L.divIcon({
@@ -237,6 +265,8 @@ export function MapView({
       mapRef.current = null
       markersRef.current.clear()
       animsRef.current.clear()
+      headingsRef.current.clear()
+      lastPositionsRef.current.clear()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])

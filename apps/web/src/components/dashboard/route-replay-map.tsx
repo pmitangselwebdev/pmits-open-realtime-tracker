@@ -54,13 +54,14 @@ export function RouteReplayMap({
   const currentIdxRef = useRef(0)
 
   const totalPoints = locations.length
-  const lastHeadingRef = useRef(0)
 
-  function lerpAngle(a: number, b: number, t: number): number {
-    let diff = b - a
-    if (diff > 180) diff -= 360
-    if (diff < -180) diff += 360
-    return a + diff * t
+  function bearing(lat1: number, lng1: number, lat2: number, lng2: number): number {
+    const dLng = (lng2 - lng1) * Math.PI / 180
+    const lat1Rad = lat1 * Math.PI / 180
+    const lat2Rad = lat2 * Math.PI / 180
+    const y = Math.sin(dLng) * Math.cos(lat2Rad)
+    const x = Math.cos(lat1Rad) * Math.sin(lat2Rad) - Math.sin(lat1Rad) * Math.cos(lat2Rad) * Math.cos(dLng)
+    return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360
   }
 
   function applyHeading(deg: number) {
@@ -69,7 +70,6 @@ export function RouteReplayMap({
     if (rotateEl) {
       rotateEl.style.transform = `rotate(${deg}deg)`
     }
-    lastHeadingRef.current = deg
   }
 
   function findNearestOnRoute(lat: number, lng: number, coords: [number, number][]): [number, number] {
@@ -120,14 +120,15 @@ export function RouteReplayMap({
       ? locations.map((l) => findNearestOnRoute(l.lat, l.lng, route))
       : locations.map((l) => [l.lat, l.lng] as [number, number])
 
-    const initialHeading = locations[0]?.heading
+    const proj = projectedRef.current
+    const initHeading = proj.length > 1 ? bearing(proj[0][0], proj[0][1], proj[1][0], proj[1][1]) : 0
     const markerHtml = createMarkerHtml({
       id: "replay",
       name: vehicleName,
       color: vehicleColor,
       icon: vehicleIcon,
       online: false,
-    }, false, initialHeading)
+    }, false, initHeading)
 
     const icon = L.divIcon({
       className: "",
@@ -237,10 +238,9 @@ export function RouteReplayMap({
 
       markerRef.current?.setLatLng([lat, lng])
 
-      const fromHeading = current.heading ?? lastHeadingRef.current
-      const toHeading = next.heading ?? fromHeading
-      const heading = lerpAngle(fromHeading, toHeading, easedT)
-      applyHeading(heading)
+      if (from[0] !== to[0] || from[1] !== to[1]) {
+        applyHeading(bearing(from[0], from[1], to[0], to[1]))
+      }
 
       const globalProgress = (idx + rawT) / (locations.length - 1)
       progressRef.current = globalProgress
@@ -280,11 +280,25 @@ export function RouteReplayMap({
         const proj = projectedRef.current
         if (proj.length > 0 && markerRef.current) {
           markerRef.current.setLatLng([proj[0][0], proj[0][1]])
-          applyHeading(locations[0]?.heading ?? 0)
+          if (proj.length > 1) {
+            applyHeading(bearing(proj[0][0], proj[0][1], proj[1][0], proj[1][1]))
+          }
         }
       }
       setPlaying(true)
     }
+  }
+
+  function headingAt(idx: number): number {
+    const proj = projectedRef.current
+    if (idx < proj.length - 1) {
+      return bearing(proj[idx][0], proj[idx][1], proj[idx + 1][0], proj[idx + 1][1])
+    }
+    if (idx > 0) {
+      const h = bearing(proj[idx - 1][0], proj[idx - 1][1], proj[idx][0], proj[idx][1])
+      return (h + 180) % 360
+    }
+    return 0
   }
 
   function handleSkip(forward: boolean) {
@@ -296,7 +310,7 @@ export function RouteReplayMap({
     const proj = projectedRef.current
     if (proj[newIdx] && markerRef.current) {
       markerRef.current.setLatLng([proj[newIdx][0], proj[newIdx][1]])
-      applyHeading(locations[newIdx]?.heading ?? lastHeadingRef.current)
+      applyHeading(headingAt(newIdx))
     }
   }
 
@@ -315,7 +329,7 @@ export function RouteReplayMap({
       if (map) {
         map.flyTo([proj[clamped][0], proj[clamped][1]], 14, { duration: 0.4 })
       }
-      applyHeading(locations[clamped]?.heading ?? lastHeadingRef.current)
+      applyHeading(headingAt(clamped))
     }
   }
 
