@@ -65,6 +65,7 @@ export function RouteReplayMap({
   const animRef = useRef<number | null>(null)
   const polylineRef = useRef<L.Polyline | null>(null)
   const routingControlRef = useRef<any>(null)
+  const tileLayerRef = useRef<L.TileLayer | null>(null)
   const [playing, setPlaying] = useState(false)
   const [speed, setSpeed] = useState<number>(2)
   const [progress, setProgress] = useState(0)
@@ -74,50 +75,48 @@ export function RouteReplayMap({
 
   const totalPoints = locations.length
 
-  useEffect(() => {
-    if (!mapContainer.current || mapRef.current) return
+  function drawRoute() {
+    const map = mapRef.current
+    if (!map || locations.length < 1) return
 
-    const map = L.map(mapContainer.current, {
-      attributionControl: false,
-      center: locations.length > 0
-        ? [locations[0].lat, locations[0].lng]
-        : [-6.2088, 106.865],
-      zoom: 13,
-    })
+    if (polylineRef.current) {
+      polylineRef.current.remove()
+      polylineRef.current = null
+    }
+    if (markerRef.current) {
+      markerRef.current.remove()
+      markerRef.current = null
+    }
 
-    const initialStyle = getMapStyle("street")
-    L.tileLayer(initialStyle.url, {
-      attribution: initialStyle.attribution,
-      maxZoom: 19,
+    const coords = route
+      ? route.map(([lng, lat]) => [lat, lng] as [number, number])
+      : locations.map((l) => [l.lat, l.lng] as [number, number])
+
+    polylineRef.current = L.polyline(coords, {
+      color: "#3b82f6",
+      weight: 4,
+      opacity: 0.85,
     }).addTo(map)
 
-    L.control.attribution({ position: "bottomright", prefix: false }).addTo(map)
-    L.control.zoom({ position: "topright" }).addTo(map)
+    map.fitBounds(polylineRef.current.getBounds(), { padding: [60, 60], maxZoom: 15 })
 
-    function onMapReady() {
-      if (locations.length > 0) {
-        const coords = route ?? locations.map((l) => [l.lat, l.lng] as [number, number])
-        polylineRef.current = L.polyline(coords, {
-          color: "#3b82f6",
-          weight: 4,
-          opacity: 0.85,
-        }).addTo(map)
+    const icon = L.divIcon({
+      className: "",
+      html: createAnimatedMarker(vehicleColor).outerHTML,
+      iconSize: [28, 28],
+      iconAnchor: [14, 14],
+    })
+    markerRef.current = L.marker([locations[0].lat, locations[0].lng], { icon }).addTo(map)
 
-        polylineRef.current.addTo(map)
+    if (routingControlRef.current) {
+      try { map.removeControl(routingControlRef.current) } catch {}
+      routingControlRef.current = null
+    }
 
-        map.fitBounds(polylineRef.current.getBounds(), { padding: [60, 60], maxZoom: 15 })
-
-        const icon = L.divIcon({
-          className: "",
-          html: createAnimatedMarker(vehicleColor).outerHTML,
-          iconSize: [28, 28],
-          iconAnchor: [14, 14],
-        })
-        markerRef.current = L.marker([locations[0].lat, locations[0].lng], { icon }).addTo(map)
-      }
-
+    try {
+      const waypoints = locations.slice(0, 20).map((l) => L.latLng(l.lat, l.lng))
       const routing = L.Routing.control({
-        waypoints: locations.slice(0, 20).map((l) => L.latLng(l.lat, l.lng)),
+        waypoints,
         routeWhileDragging: false,
         show: false,
         collapsible: true,
@@ -129,22 +128,46 @@ export function RouteReplayMap({
         },
       } as any)
       routingControlRef.current = routing.addTo(map)
-    }
+    } catch {}
+  }
 
-    onMapReady()
+  useEffect(() => {
+    if (!mapContainer.current || mapRef.current) return
+
+    const map = L.map(mapContainer.current, {
+      attributionControl: false,
+      center: [-6.2088, 106.865],
+      zoom: 13,
+    })
+
+    const initialStyle = getMapStyle("street")
+    tileLayerRef.current = L.tileLayer(initialStyle.url, {
+      attribution: initialStyle.attribution,
+      maxZoom: 19,
+    }).addTo(map)
+
+    L.control.attribution({ position: "bottomright", prefix: false }).addTo(map)
+    L.control.zoom({ position: "topright" }).addTo(map)
 
     mapRef.current = map
 
     return () => {
       if (animRef.current) cancelAnimationFrame(animRef.current)
-      routingControlRef.current = null
-      map.remove()
+      tileLayerRef.current = null
+      try { map.remove() } catch {}
       mapRef.current = null
       markerRef.current = null
       polylineRef.current = null
+      routingControlRef.current = null
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  useEffect(() => {
+    if (!mapRef.current || locations.length === 0) return
+    drawRoute()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [locations, route, vehicleColor])
 
   const stopAnimation = useCallback(() => {
     if (animRef.current) {
@@ -255,16 +278,6 @@ export function RouteReplayMap({
       }
     }
   }
-
-  useEffect(() => {
-    if (locations.length > 0 && markerRef.current) {
-      markerRef.current.setLatLng([locations[0].lat, locations[0].lng])
-      const map = mapRef.current
-      if (map && polylineRef.current) {
-        map.fitBounds(polylineRef.current.getBounds(), { padding: [60, 60], maxZoom: 15 })
-      }
-    }
-  }, [locations])
 
   const currentLoc = locations[currentIdx]
 

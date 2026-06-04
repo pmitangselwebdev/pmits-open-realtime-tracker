@@ -24,7 +24,7 @@ export function VehicleDetailPanel() {
           animate={{ x: 0 }}
           exit={{ x: "100%" }}
           transition={{ type: "spring", damping: 30, stiffness: 300 }}
-          className="fixed right-0 top-0 z-50 h-full w-full max-w-md bg-background border-l border-border shadow-2xl"
+          className="fixed right-0 top-0 z-[9999] isolate h-full w-full max-w-md bg-background border-l border-border shadow-2xl"
         >
           <div className="flex flex-col h-full">
             <div className="flex items-center justify-between p-6 border-b border-border">
