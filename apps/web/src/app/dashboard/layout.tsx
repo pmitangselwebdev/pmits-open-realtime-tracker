@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion"
 import { Sidebar } from "@/components/dashboard/sidebar"
 import { Navbar } from "@/components/dashboard/navbar"
 import { VehicleDetailPanel } from "@/components/dashboard/vehicle-detail-panel"
+import { useDashboardStore } from "@/stores/dashboard-store"
 
 export default function DashboardLayout({
   children,
@@ -12,6 +13,7 @@ export default function DashboardLayout({
   children: React.ReactNode
 }) {
   const pathname = usePathname()
+  const sidebarOpen = useDashboardStore((s) => s.sidebarOpen)
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
