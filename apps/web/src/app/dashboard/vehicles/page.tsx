@@ -1,7 +1,5 @@
 "use client"
 
-import { useState } from "react"
-import { useQueryClient } from "@tanstack/react-query"
 import { useVehicles } from "@/hooks/use-vehicles"
 import { useDashboardStore } from "@/stores/dashboard-store"
 import { Button } from "@/components/ui/button"
@@ -16,8 +14,6 @@ export default function VehiclesPage() {
   const { vehicles, isLoading } = useVehicles()
   const { searchQuery, setSearchQuery, filter, setFilter } =
     useDashboardStore()
-  const queryClient = useQueryClient()
-  const [editing] = useState<string | null>(null)
 
   const filtered = vehicles.filter((v) => {
     const q = searchQuery.toLowerCase()
@@ -32,38 +28,6 @@ export default function VehiclesPage() {
     return matchesSearch && matchesFilter
   })
 
-  async function handleAdd(data: { name: string; plate: string; uniqueId: string; color: string; icon: string }) {
-    const res = await fetch("/api/vehicles", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
-    })
-    if (!res.ok) {
-      const err = await res.json()
-      throw new Error(err.error ?? "Failed to create vehicle")
-    }
-    queryClient.invalidateQueries({ queryKey: ["vehicles"] })
-  }
-
-  async function handleEdit(id: string, data: { name: string; plate: string; uniqueId: string; color: string; icon: string }) {
-    const res = await fetch(`/api/vehicles/${id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
-    })
-    if (!res.ok) {
-      const err = await res.json()
-      throw new Error(err.error ?? "Failed to update vehicle")
-    }
-    queryClient.invalidateQueries({ queryKey: ["vehicles"] })
-  }
-
-  async function handleDelete(id: string) {
-    const res = await fetch(`/api/vehicles/${id}`, { method: "DELETE" })
-    if (!res.ok) throw new Error("Failed to delete vehicle")
-    queryClient.invalidateQueries({ queryKey: ["vehicles"] })
-  }
-
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -73,7 +37,7 @@ export default function VehiclesPage() {
             Manage your fleet and device identifiers
           </p>
         </div>
-        <VehicleDialog mode="add" onSave={handleAdd} />
+        <VehicleDialog mode="add" />
       </div>
 
       <div className="flex items-center gap-4 flex-wrap">
@@ -126,8 +90,6 @@ export default function VehiclesPage() {
         ) : (
           <div className="divide-y divide-border/50">
             {filtered.map((vehicle) => {
-              const editData = editing === vehicle.id
-
               return (
                 <div
                   key={vehicle.id}
@@ -183,8 +145,6 @@ export default function VehiclesPage() {
                         color: vehicle.color ?? "#dc2626",
                         icon: vehicle.icon ?? "",
                       }}
-                      onSave={(data) => handleEdit(vehicle.id, data)}
-                      onDelete={() => handleDelete(vehicle.id)}
                       trigger={
                         <Button variant="ghost" size="icon" className="h-8 w-8">
                           <Pencil className="h-4 w-4" />

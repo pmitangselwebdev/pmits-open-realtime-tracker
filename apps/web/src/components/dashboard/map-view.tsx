@@ -1,11 +1,11 @@
 "use client"
 
 import { useEffect, useRef, useState, useCallback } from "react"
-import maplibregl from "maplibre-gl"
-import "maplibre-gl/dist/maplibre-gl.css"
+import L from "leaflet"
+import "leaflet/dist/leaflet.css"
 import type { VehicleWithStatus } from "shared"
 import type { MapStyle } from "@/lib/map-styles"
-import { getMapStyle } from "@/lib/map-styles"
+import { getMapStyle, mapStyles } from "@/lib/map-styles"
 import { MapStyleSwitcher } from "./map-style-switcher"
 import { createMarkerHtml } from "@/lib/vehicle-markers"
 
@@ -17,10 +17,10 @@ interface MapViewProps {
 }
 
 interface AnimState {
-  fromLng: number
   fromLat: number
-  toLng: number
+  fromLng: number
   toLat: number
+  toLng: number
   startTime: number
   duration: number
 }
@@ -43,8 +43,9 @@ export function MapView({
   showOnlineBadge = false,
 }: MapViewProps) {
   const mapContainer = useRef<HTMLDivElement>(null)
-  const mapRef = useRef<maplibregl.Map | null>(null)
-  const markersRef = useRef<Map<string, maplibregl.Marker>>(new Map())
+  const mapRef = useRef<L.Map | null>(null)
+  const tileLayerRef = useRef<L.TileLayer | null>(null)
+  const markersRef = useRef<Map<string, L.Marker>>(new Map())
   const animsRef = useRef<Map<string, AnimState>>(new Map())
   const rafRef = useRef<number | null>(null)
   const [styleId, setStyleId] = useState("street")
@@ -71,10 +72,10 @@ export function MapView({
       const t = Math.min(elapsed / anim.duration, 1)
       const eased = easeOutCubic(t)
 
-      const lng = anim.fromLng + (anim.toLng - anim.fromLng) * eased
       const lat = anim.fromLat + (anim.toLat - anim.fromLat) * eased
+      const lng = anim.fromLng + (anim.toLng - anim.fromLng) * eased
 
-      marker.setLngLat([lng, lat])
+      marker.setLatLng([lat, lng])
 
       if (t < 1) hasActive = true
     }
@@ -86,9 +87,9 @@ export function MapView({
     }
   }, [])
 
-  function startAnim(vehicleId: string, fromLng: number, fromLat: number, toLng: number, toLat: number) {
+  function startAnim(vehicleId: string, fromLat: number, fromLng: number, toLat: number, toLng: number) {
     animsRef.current.set(vehicleId, {
-      fromLng, fromLat, toLng, toLat,
+      fromLat, fromLng, toLat, toLng,
       startTime: performance.now(),
       duration: 150,
     })
@@ -119,43 +120,42 @@ export function MapView({
 
       const existing = markersRef.current.get(vehicle.id)
       if (existing) {
-        const currentPos = existing.getLngLat()
+        const currentPos = existing.getLatLng()
 
         if (currentPos.lat !== loc.lat || currentPos.lng !== loc.lng) {
           startAnim(
             vehicle.id,
-            currentPos.lng, currentPos.lat,
-            loc.lng, loc.lat
+            currentPos.lat, currentPos.lng,
+            loc.lat, loc.lng
           )
         }
 
         const isSelected = selectedVehicleId === vehicle.id
         const newHtml = createMarkerHtml(vehicle, isSelected)
-        if (existing.getElement().innerHTML !== newHtml) {
-          existing.getElement().innerHTML = newHtml
+        const el = existing.getElement()
+        if (el && el.innerHTML !== newHtml) {
+          el.innerHTML = newHtml
         }
 
-        existing.setPopup(
-          new maplibregl.Popup({
-            offset: 20,
-            closeButton: false,
-            className: "vehicle-popup",
-          }).setHTML(createPopupHtml(vehicle))
-        )
+        existing.setPopupContent(createPopupHtml(vehicle))
       } else {
         const el = createMarkerElement(vehicle, selectedVehicleId === vehicle.id)
         el.addEventListener("click", () => onVehicleClick?.(vehicle.id))
 
-        const marker = new maplibregl.Marker({ element: el, anchor: "center" })
-          .setLngLat([loc.lng, loc.lat])
-          .setPopup(
-            new maplibregl.Popup({
-              offset: 20,
-              closeButton: false,
-              className: "vehicle-popup",
-            }).setHTML(createPopupHtml(vehicle))
-          )
+        const icon = L.divIcon({
+          className: "",
+          html: el.outerHTML,
+          iconSize: [44, 44],
+          iconAnchor: [22, 22],
+        })
+
+        const marker = L.marker([loc.lat, loc.lng], { icon })
           .addTo(map)
+          .bindPopup(createPopupHtml(vehicle), {
+            offset: [0, -22],
+            closeButton: false,
+            className: "vehicle-popup",
+          })
 
         markersRef.current.set(vehicle.id, marker)
       }
@@ -188,10 +188,17 @@ export function MapView({
       const map = mapRef.current
       if (!map) return
       setStyleId(style.id)
-      map.setStyle(style.style as any)
-      map.once("style.load", () => {
-        diffMarkers()
-      })
+
+      if (tileLayerRef.current) {
+        map.removeLayer(tileLayerRef.current)
+      }
+
+      tileLayerRef.current = L.tileLayer(style.url, {
+        attribution: style.attribution,
+        maxZoom: 19,
+      }).addTo(map)
+
+      diffMarkers()
     },
     [diffMarkers]
   )
@@ -200,22 +207,22 @@ export function MapView({
     if (!mapContainer.current || mapRef.current) return
 
     const initialStyle = getMapStyle("street")
-    const map = new maplibregl.Map({
-      container: mapContainer.current,
-      style: initialStyle.style as any,
-      center: [106.865, -6.2088],
+    const map = L.map(mapContainer.current, {
+      center: [-6.2088, 106.865],
       zoom: 11,
       attributionControl: false,
     })
 
-    map.addControl(new maplibregl.NavigationControl(), "top-right")
-    map.addControl(
-      new maplibregl.AttributionControl({ compact: true }),
-      "bottom-right"
-    )
+    L.control.attribution({ position: "bottomright", prefix: false }).addTo(map)
+    L.control.zoom({ position: "topright" }).addTo(map)
 
-    map.on("load", () => {
-      map.resize()
+    tileLayerRef.current = L.tileLayer(initialStyle.url, {
+      attribution: initialStyle.attribution,
+      maxZoom: 19,
+    }).addTo(map)
+
+    map.whenReady(() => {
+      map.invalidateSize()
       setMapReady(true)
       diffMarkers()
     })
@@ -224,12 +231,14 @@ export function MapView({
 
     return () => {
       if (rafRef.current) cancelAnimationFrame(rafRef.current)
-      try { map.remove() } catch {}
+      tileLayerRef.current = null
+      map.remove()
       mapRef.current = null
       markersRef.current.clear()
       animsRef.current.clear()
     }
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   useEffect(() => {
     if (!mapReady) return
@@ -247,10 +256,8 @@ export function MapView({
     const vehicle = vehicles.find((v) => v.id === selectedVehicleId)
     if (!vehicle?.latestLocation) return
 
-    map.flyTo({
-      center: [vehicle.latestLocation.lng, vehicle.latestLocation.lat],
-      zoom: 15,
-      duration: 1000,
+    map.flyTo([vehicle.latestLocation.lat, vehicle.latestLocation.lng], 15, {
+      duration: 1,
     })
   }, [selectedVehicleId, mapReady])
 
@@ -260,7 +267,7 @@ export function MapView({
         ref={mapContainer}
         className="h-full w-full rounded-xl overflow-hidden"
       />
-      <div className="absolute top-4 left-4 z-20 flex items-start gap-2">
+      <div className="absolute top-4 left-4 z-[1000] flex items-start gap-2">
         <MapStyleSwitcher
           currentStyle={styleId}
           onStyleChange={handleStyleChange}

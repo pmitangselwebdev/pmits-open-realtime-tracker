@@ -1,14 +1,13 @@
 "use client"
 
 import { useEffect, useRef, useState, useCallback } from "react"
-import dynamic from "next/dynamic"
-import maplibregl from "maplibre-gl"
-import "maplibre-gl/dist/maplibre-gl.css"
+import L from "leaflet"
+import "leaflet/dist/leaflet.css"
+import "leaflet-routing-machine"
+import "leaflet-routing-machine/dist/leaflet-routing-machine.css"
 import { Play, Pause, SkipBack, SkipForward, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
-import { MapStyleSwitcher } from "./map-style-switcher"
-import type { MapStyle } from "@/lib/map-styles"
 import { getMapStyle } from "@/lib/map-styles"
 
 interface LocationPoint {
@@ -37,7 +36,6 @@ function createAnimatedMarker(color: string) {
       width: 28px; height: 28px;
       position: relative;
       filter: drop-shadow(0 2px 8px rgba(0,0,0,0.5));
-      transition: transform 0.05s linear;
     ">
       <svg viewBox="0 0 24 24" width="100%" height="100%">
         <path d="M6 5Q6 3 9 3L15 3Q18 3 18 5L18 19Q18 21 15 21L9 21Q6 21 6 19Z" fill="${color}"/>
@@ -62,117 +60,91 @@ export function RouteReplayMap({
   route,
 }: RouteReplayMapProps) {
   const mapContainer = useRef<HTMLDivElement>(null)
-  const mapRef = useRef<maplibregl.Map | null>(null)
-  const markerRef = useRef<maplibregl.Marker | null>(null)
+  const mapRef = useRef<L.Map | null>(null)
+  const markerRef = useRef<L.Marker | null>(null)
   const animRef = useRef<number | null>(null)
+  const polylineRef = useRef<L.Polyline | null>(null)
+  const routingControlRef = useRef<any>(null)
   const [playing, setPlaying] = useState(false)
   const [speed, setSpeed] = useState<number>(2)
   const [progress, setProgress] = useState(0)
   const [currentIdx, setCurrentIdx] = useState(0)
-  const [styleId, setStyleId] = useState("street")
   const progressRef = useRef(0)
   const currentIdxRef = useRef(0)
 
   const totalPoints = locations.length
 
-  const routeSourceId = "route-line"
-
-  const drawRoute = useCallback((map: maplibregl.Map) => {
-    if (locations.length < 2) return
-
-    const coords = route ?? locations.map((l) => [l.lng, l.lat] as [number, number])
-
-    const src = map.getSource(routeSourceId) as maplibregl.GeoJSONSource
-    if (src) {
-      try {
-        src.setData({
-          type: "Feature",
-          properties: {},
-          geometry: { type: "LineString", coordinates: coords },
-        })
-      } catch {}
-    } else {
-      try {
-        map.addSource(routeSourceId, {
-          type: "geojson",
-          data: {
-            type: "Feature",
-            properties: {},
-            geometry: { type: "LineString", coordinates: coords },
-          },
-        })
-
-        map.addLayer({
-          id: `${routeSourceId}-line`,
-          type: "line",
-          source: routeSourceId,
-          layout: { "line-join": "round", "line-cap": "round" },
-          paint: {
-            "line-color": "#3b82f6",
-            "line-width": 4,
-            "line-opacity": 0.85,
-          },
-        })
-
-        map.addLayer({
-          id: `${routeSourceId}-glow`,
-          type: "line",
-          source: routeSourceId,
-          layout: { "line-join": "round", "line-cap": "round" },
-          paint: {
-            "line-color": "#3b82f6",
-            "line-width": 10,
-            "line-opacity": 0.2,
-          },
-        })
-      } catch {}
-    }
-  }, [locations, route])
-
   useEffect(() => {
     if (!mapContainer.current || mapRef.current) return
 
-    const initialStyle = getMapStyle(styleId)
-    const map = new maplibregl.Map({
-      container: mapContainer.current,
-      style: initialStyle.style as any,
-      center: locations.length > 0
-        ? [locations[0].lng, locations[0].lat]
-        : [106.865, -6.2088],
-      zoom: 13,
+    const map = L.map(mapContainer.current, {
       attributionControl: false,
+      center: locations.length > 0
+        ? [locations[0].lat, locations[0].lng]
+        : [-6.2088, 106.865],
+      zoom: 13,
     })
 
-    map.addControl(new maplibregl.NavigationControl(), "top-right")
-    map.addControl(new maplibregl.AttributionControl({ compact: true }), "bottom-right")
+    const initialStyle = getMapStyle("street")
+    L.tileLayer(initialStyle.url, {
+      attribution: initialStyle.attribution,
+      maxZoom: 19,
+    }).addTo(map)
 
-    map.on("load", () => {
-      map.resize()
-      drawRoute(map)
+    L.control.attribution({ position: "bottomright", prefix: false }).addTo(map)
+    L.control.zoom({ position: "topright" }).addTo(map)
 
+    function onMapReady() {
       if (locations.length > 0) {
-        const el = createAnimatedMarker(vehicleColor)
-        markerRef.current = new maplibregl.Marker({ element: el })
-          .setLngLat([locations[0].lng, locations[0].lat])
-          .addTo(map)
+        const coords = route ?? locations.map((l) => [l.lat, l.lng] as [number, number])
+        polylineRef.current = L.polyline(coords, {
+          color: "#3b82f6",
+          weight: 4,
+          opacity: 0.85,
+        }).addTo(map)
+
+        polylineRef.current.addTo(map)
+
+        map.fitBounds(polylineRef.current.getBounds(), { padding: [60, 60], maxZoom: 15 })
+
+        const icon = L.divIcon({
+          className: "",
+          html: createAnimatedMarker(vehicleColor).outerHTML,
+          iconSize: [28, 28],
+          iconAnchor: [14, 14],
+        })
+        markerRef.current = L.marker([locations[0].lat, locations[0].lng], { icon }).addTo(map)
       }
-    })
+
+      const routing = L.Routing.control({
+        waypoints: locations.slice(0, 20).map((l) => L.latLng(l.lat, l.lng)),
+        routeWhileDragging: false,
+        show: false,
+        collapsible: true,
+        fitSelectedRoutes: false,
+        lineOptions: {
+          styles: [{ color: "#6366f1", weight: 4, opacity: 0.5 }],
+          extendToWaypoints: false,
+          missingRouteTolerance: 10,
+        },
+      } as any)
+      routingControlRef.current = routing.addTo(map)
+    }
+
+    onMapReady()
 
     mapRef.current = map
 
     return () => {
-      stopAnimation()
+      if (animRef.current) cancelAnimationFrame(animRef.current)
+      routingControlRef.current = null
       map.remove()
       mapRef.current = null
       markerRef.current = null
+      polylineRef.current = null
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
-
-  useEffect(() => {
-    const map = mapRef.current
-    if (!map || !map.isStyleLoaded()) return
-    drawRoute(map)
-  }, [locations, drawRoute])
 
   const stopAnimation = useCallback(() => {
     if (animRef.current) {
@@ -185,17 +157,9 @@ export function RouteReplayMap({
     if (locations.length < 2) return
 
     let lastTime = performance.now()
-    let lastHeading: number | null = locations[0]?.heading ?? null
 
     function easeInOutQuad(t: number): number {
       return t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t
-    }
-
-    function lerpAngle(a: number, b: number, t: number): number {
-      let diff = b - a
-      if (diff > 180) diff -= 360
-      if (diff < -180) diff += 360
-      return a + diff * t
     }
 
     function animate(time: number) {
@@ -219,17 +183,7 @@ export function RouteReplayMap({
       const lat = current.lat + (next.lat - current.lat) * easedT
       const lng = current.lng + (next.lng - current.lng) * easedT
 
-      markerRef.current?.setLngLat([lng, lat])
-
-      const currentHeading = current.heading ?? lastHeading ?? 0
-      const nextHeading = next.heading ?? currentHeading
-      const smoothHeading = lerpAngle(currentHeading, nextHeading, easedT)
-      lastHeading = smoothHeading
-
-      markerRef.current?.getElement().querySelector("svg")?.style.setProperty(
-        "transform",
-        `rotate(${smoothHeading}deg)`
-      )
+      markerRef.current?.setLatLng([lat, lng])
 
       const globalProgress = (idx + rawT) / (locations.length - 1)
       progressRef.current = globalProgress
@@ -245,7 +199,6 @@ export function RouteReplayMap({
     }
 
     lastTime = performance.now()
-    lastHeading = locations[0]?.heading ?? null
     animRef.current = requestAnimationFrame(animate)
   }, [locations, speed])
 
@@ -268,7 +221,7 @@ export function RouteReplayMap({
         progressRef.current = 0
         setProgress(0)
         if (locations.length > 0 && markerRef.current) {
-          markerRef.current.setLngLat([locations[0].lng, locations[0].lat])
+          markerRef.current.setLatLng([locations[0].lat, locations[0].lng])
         }
       }
       setPlaying(true)
@@ -282,7 +235,7 @@ export function RouteReplayMap({
     setCurrentIdx(newIdx)
     setProgress(newIdx / (locations.length - 1))
     if (locations[newIdx]) {
-      markerRef.current?.setLngLat([locations[newIdx].lng, locations[newIdx].lat])
+      markerRef.current?.setLatLng([locations[newIdx].lat, locations[newIdx].lng])
     }
   }
 
@@ -295,59 +248,25 @@ export function RouteReplayMap({
     setCurrentIdx(clamped)
     setProgress(clamped / (locations.length - 1))
     if (locations[clamped]) {
-      markerRef.current?.setLngLat([locations[clamped].lng, locations[clamped].lat])
+      markerRef.current?.setLatLng([locations[clamped].lat, locations[clamped].lng])
       const map = mapRef.current
       if (map) {
-        map.flyTo({
-          center: [locations[clamped].lng, locations[clamped].lat],
-          zoom: 14,
-          duration: 400,
-        })
+        map.flyTo([locations[clamped].lat, locations[clamped].lng], 14, { duration: 0.4 })
       }
     }
   }
 
   useEffect(() => {
     if (locations.length > 0 && markerRef.current) {
-      markerRef.current.setLngLat([locations[0].lng, locations[0].lat])
+      markerRef.current.setLatLng([locations[0].lat, locations[0].lng])
       const map = mapRef.current
-      if (map) {
-        map.fitBounds(
-          locations.reduce(
-            (b, l) => b.extend([l.lng, l.lat]),
-            new maplibregl.LngLatBounds([locations[0].lng, locations[0].lat], [locations[0].lng, locations[0].lat])
-          ),
-          { padding: 60, maxZoom: 15 }
-        )
+      if (map && polylineRef.current) {
+        map.fitBounds(polylineRef.current.getBounds(), { padding: [60, 60], maxZoom: 15 })
       }
     }
   }, [locations])
 
   const currentLoc = locations[currentIdx]
-
-  const handleStyleChange = useCallback(
-    (style: MapStyle) => {
-      setStyleId(style.id)
-      const map = mapRef.current
-      if (!map) return
-      map.setStyle(style.style as any)
-      map.once("style.load", () => {
-        if (locations.length > 0) {
-          const existed = markerRef.current
-          if (existed) {
-            existed.addTo(map)
-          } else {
-            const el = createAnimatedMarker(vehicleColor)
-            markerRef.current = new maplibregl.Marker({ element: el })
-              .setLngLat([locations[currentIdxRef.current]?.lng ?? locations[0].lng, locations[currentIdxRef.current]?.lat ?? locations[0].lat])
-              .addTo(map)
-          }
-          drawRoute(map)
-        }
-      })
-    },
-    [vehicleColor, locations, drawRoute]
-  )
 
   if (isLoading) {
     return (
@@ -369,24 +288,19 @@ export function RouteReplayMap({
 
   return (
     <div className="h-full w-full relative rounded-xl overflow-hidden border border-border/50">
-      <div ref={mapContainer} className="h-full w-full" />
+      <div ref={mapContainer} className="h-full w-full z-0" />
 
-      <div className="absolute top-3 left-3 z-10 flex items-start gap-2">
-        <MapStyleSwitcher
-          currentStyle={styleId}
-          onStyleChange={handleStyleChange}
-        />
-        <Card className="px-3 py-1.5 bg-background/90 backdrop-blur-sm">
+      <div className="absolute top-3 left-3 z-[1000] flex items-start gap-2 pointer-events-none">
+        <Card className="px-3 py-1.5 bg-background/90 backdrop-blur-sm pointer-events-auto">
           <p className="text-sm font-medium">{vehicleName}</p>
           <p className="text-xs text-muted-foreground">
             {currentIdx + 1} / {totalPoints} points
           </p>
-
         </Card>
       </div>
 
       {currentLoc && (
-        <div className="absolute top-3 right-3 z-10">
+        <div className="absolute top-3 right-3 z-[1000]">
           <Card className="px-3 py-1.5 bg-background/90 backdrop-blur-sm text-xs space-y-0.5">
             <p className="font-mono">
               {currentLoc.lat.toFixed(4)}, {currentLoc.lng.toFixed(4)}
@@ -404,8 +318,8 @@ export function RouteReplayMap({
       )}
 
       {totalPoints > 0 && (
-        <div className="absolute bottom-0 left-0 right-0 z-10 p-4 bg-gradient-to-t from-background/90 to-transparent">
-          <div className="flex items-center gap-3 max-w-xl mx-auto">
+        <div className="absolute bottom-0 left-0 right-0 z-[1000] p-4 bg-gradient-to-t from-background/90 to-transparent pointer-events-none">
+          <div className="flex items-center gap-3 max-w-xl mx-auto pointer-events-auto">
             <Button
               variant="ghost"
               size="icon"

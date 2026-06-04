@@ -44,32 +44,21 @@ export function createMarkerHtml(
   const loc = vehicle.latestLocation
   if (!loc) return ""
 
-  const color = vehicle.color ?? "#dc2626"
   const type = getVehicleType(vehicle.name, vehicle.icon)
   const emoji = VEHICLE_EMOJI[type] ?? VEHICLE_EMOJI.car
-  const size = isSelected ? 52 : 42
+  const fontSize = isSelected ? "36px" : "28px"
   const online = vehicle.online ?? false
-  const borderColor = online ? color : "#6b7280"
   const onlineDot = online
-    ? `<div style="position:absolute;top:-3px;right:-3px;width:10px;height:10px;border-radius:50%;background:#22c55e;border:2px solid #1e293b;box-shadow:0 0 8px rgba(34,197,94,0.7);"></div>`
+    ? `<div style="position:absolute;bottom:-2px;right:-4px;width:12px;height:12px;border-radius:50%;background:#22c55e;border:2px solid #1e293b;box-shadow:0 0 6px rgba(34,197,94,0.6);"></div>`
     : ""
 
   return `<div style="
-    width:${size}px;height:${size}px;
-    cursor:pointer;position:relative;
-    will-change:transform;
-  ">
-    <div style="
-      width:100%;height:100%;
-      display:flex;align-items:center;justify-content:center;
-      background:${online ? `${color}25` : "#1e293b"};
-      border:2px solid ${borderColor};
-      border-radius:50%;
-      box-shadow:${online ? `0 0 12px ${color}40` : "0 2px 8px rgba(0,0,0,0.2)"};
-      transition:all 0.2s;
-      font-size:${isSelected ? "24px" : "20px"};
-      line-height:1;
-    ">${emoji}</div>
-    ${onlineDot}
-  </div>`
+    width:${isSelected ? "48px" : "36px"};height:${isSelected ? "48px" : "36px"};
+    cursor:pointer;display:flex;align-items:center;justify-content:center;
+    position:relative;
+    filter:drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+    font-size:${fontSize};line-height:1;
+    transition:transform 0.15s;
+    transform:${isSelected ? "scale(1.2)" : "scale(1)"};
+  ">${emoji}${onlineDot}</div>`
 }

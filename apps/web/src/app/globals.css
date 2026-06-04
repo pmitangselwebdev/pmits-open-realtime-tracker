@@ -67,19 +67,25 @@
   }
 }
 
-.vehicle-popup.maplibregl-popup {
-  background: transparent;
-  box-shadow: none;
-}
-
-.vehicle-popup .maplibregl-popup-content {
+.vehicle-popup .leaflet-popup-content-wrapper {
   background: transparent !important;
-  padding: 0 !important;
-  border-radius: 12px;
   box-shadow: none !important;
-  font-size: inherit;
+  border-radius: 12px;
+  padding: 0 !important;
 }
 
-.vehicle-popup .maplibregl-popup-tip {
+.vehicle-popup .leaflet-popup-content {
+  margin: 0 !important;
+  font-size: inherit;
+  line-height: inherit;
+}
+
+.vehicle-popup .leaflet-popup-tip {
   border-top-color: #1e293b !important;
+  background: #1e293b !important;
+  box-shadow: none !important;
+}
+
+.vehicle-popup .leaflet-popup-close-button {
+  display: none;
 }

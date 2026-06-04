@@ -1,6 +1,7 @@
 "use client"
 
-import { useState } from "react"
+import { useState, memo } from "react"
+import { useQueryClient } from "@tanstack/react-query"
 import {
   Dialog,
   DialogContent,
@@ -26,8 +27,6 @@ interface VehicleFormData {
 interface VehicleDialogProps {
   mode: "add" | "edit"
   initialData?: VehicleFormData & { id: string }
-  onSave: (data: VehicleFormData) => Promise<void>
-  onDelete?: () => Promise<void>
   trigger?: React.ReactNode
 }
 
@@ -44,13 +43,12 @@ const TYPES: { value: VehicleIconType; label: string; emoji: string }[] = [
   { value: "car", label: "Mobil / Sedan", emoji: "🚗" },
 ]
 
-export function VehicleDialog({
+export const VehicleDialog = memo(function VehicleDialog({
   mode,
   initialData,
-  onSave,
-  onDelete,
   trigger,
 }: VehicleDialogProps) {
+  const queryClient = useQueryClient()
   const [open, setOpen] = useState(false)
   const [name, setName] = useState(initialData?.name ?? "")
   const [plate, setPlate] = useState(initialData?.plate ?? "")
@@ -73,7 +71,19 @@ export function VehicleDialog({
     setSaving(true)
     setError(null)
     try {
-      await onSave({ name, plate, uniqueId, color, icon: type })
+      const res = await fetch(
+        mode === "add" ? "/api/vehicles" : `/api/vehicles/${initialData!.id}`,
+        {
+          method: mode === "add" ? "POST" : "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name, plate, uniqueId, color, icon: type }),
+        }
+      )
+      if (!res.ok) {
+        const err = await res.json()
+        throw new Error(err.error ?? "Failed to save")
+      }
+      queryClient.invalidateQueries({ queryKey: ["vehicles"] })
       setOpen(false)
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to save")
@@ -83,11 +93,15 @@ export function VehicleDialog({
   }
 
   async function handleDelete() {
-    if (!onDelete) return
+    if (mode !== "edit" || !initialData) return
     setDeleting(true)
     setError(null)
     try {
-      await onDelete()
+      const res = await fetch(`/api/vehicles/${initialData.id}`, {
+        method: "DELETE",
+      })
+      if (!res.ok) throw new Error("Failed to delete vehicle")
+      queryClient.invalidateQueries({ queryKey: ["vehicles"] })
       setOpen(false)
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to delete")
@@ -207,7 +221,7 @@ export function VehicleDialog({
               {saving && <Loader2 className="h-4 w-4 animate-spin" />}
               {mode === "add" ? "Create Vehicle" : "Save Changes"}
             </Button>
-            {mode === "edit" && onDelete && (
+            {mode === "edit" && (
               <Button
                 variant="destructive"
                 onClick={handleDelete}
@@ -223,4 +237,6 @@ export function VehicleDialog({
       </DialogContent>
     </Dialog>
   )
-}
+}, (prev, next) => {
+  return prev.mode === next.mode && prev.initialData?.id === next.initialData?.id
+})
