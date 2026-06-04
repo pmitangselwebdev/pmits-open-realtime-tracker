@@ -4,7 +4,6 @@ import { usePathname } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
 import { Sidebar } from "@/components/dashboard/sidebar"
 import { Navbar } from "@/components/dashboard/navbar"
-import { VehicleDetailPanel } from "@/components/dashboard/vehicle-detail-panel"
 import { useDashboardStore } from "@/stores/dashboard-store"
 
 export default function DashboardLayout({
@@ -39,7 +38,6 @@ export default function DashboardLayout({
           </AnimatePresence>
         </div>
       </main>
-      <VehicleDetailPanel />
     </div>
   )
 }

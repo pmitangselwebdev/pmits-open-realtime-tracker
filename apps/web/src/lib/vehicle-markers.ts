@@ -37,13 +37,10 @@ export function createMarkerHtml(
     color?: string | null
     icon?: string | null
     online?: boolean
-    latestLocation?: { heading?: number | null; lat: number; lng: number } | null
   },
-  isSelected: boolean
+  isSelected: boolean,
+  heading?: number | null
 ): string {
-  const loc = vehicle.latestLocation
-  if (!loc) return ""
-
   const type = getVehicleType(vehicle.name, vehicle.icon)
   const emoji = VEHICLE_EMOJI[type] ?? VEHICLE_EMOJI.car
   const fontSize = isSelected ? "36px" : "28px"
@@ -51,6 +48,7 @@ export function createMarkerHtml(
   const onlineDot = online
     ? `<div style="position:absolute;bottom:-2px;right:-4px;width:12px;height:12px;border-radius:50%;background:#22c55e;border:2px solid #1e293b;box-shadow:0 0 6px rgba(34,197,94,0.6);"></div>`
     : ""
+  const deg = heading ?? 0
 
   return `<div style="
     width:${isSelected ? "48px" : "36px"};height:${isSelected ? "48px" : "36px"};
@@ -60,5 +58,8 @@ export function createMarkerHtml(
     font-size:${fontSize};line-height:1;
     transition:transform 0.15s;
     transform:${isSelected ? "scale(1.2)" : "scale(1)"};
-  ">${emoji}${onlineDot}</div>`
+  ">
+    <div class="marker-rotate" style="transform:rotate(${deg}deg);transition:transform 0.1s linear;">${emoji}</div>
+    ${onlineDot}
+  </div>`
 }

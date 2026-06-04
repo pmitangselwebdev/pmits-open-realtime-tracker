@@ -28,11 +28,12 @@ interface AnimState {
 function createMarkerElement(
   vehicle: VehicleWithStatus,
   isSelected: boolean,
+  heading?: number | null,
 ) {
   const el = document.createElement("div")
   el.className = "vehicle-marker"
   el.dataset.vehicleId = vehicle.id
-  el.innerHTML = createMarkerHtml(vehicle, isSelected)
+  el.innerHTML = createMarkerHtml(vehicle, isSelected, heading)
   return el
 }
 
@@ -131,7 +132,7 @@ export function MapView({
         }
 
         const isSelected = selectedVehicleId === vehicle.id
-        const newHtml = createMarkerHtml(vehicle, isSelected)
+        const newHtml = createMarkerHtml(vehicle, isSelected, loc.heading)
         const el = existing.getElement()
         if (el && el.innerHTML !== newHtml) {
           el.innerHTML = newHtml
@@ -139,7 +140,7 @@ export function MapView({
 
         existing.setPopupContent(createPopupHtml(vehicle))
       } else {
-        const el = createMarkerElement(vehicle, selectedVehicleId === vehicle.id)
+        const el = createMarkerElement(vehicle, selectedVehicleId === vehicle.id, loc.heading)
         el.addEventListener("click", () => onVehicleClick?.(vehicle.id))
 
         const icon = L.divIcon({

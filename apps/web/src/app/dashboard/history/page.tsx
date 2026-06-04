@@ -36,6 +36,7 @@ export default function HistoryPage() {
   const selectedVehicle = vehicles.find((v) => v.id === selectedVehicleId)
   const color = selectedVehicle?.color ?? "#dc2626"
   const name = selectedVehicle?.name ?? ""
+  const icon = selectedVehicle?.icon ?? undefined
 
   const { data, isLoading } = useQuery({
     queryKey: ["locations", "replay", selectedVehicleId, datePreset],
@@ -143,6 +144,7 @@ export default function HistoryPage() {
                   locations={locations}
                   vehicleName={name}
                   vehicleColor={color}
+                  vehicleIcon={icon}
                   isLoading={isLoading}
                   route={route}
                 />

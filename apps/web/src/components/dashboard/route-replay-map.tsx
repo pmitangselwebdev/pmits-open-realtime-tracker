@@ -9,6 +9,7 @@ import { Play, Pause, SkipBack, SkipForward, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { getMapStyle } from "@/lib/map-styles"
+import { createMarkerHtml } from "@/lib/vehicle-markers"
 
 interface LocationPoint {
   id: string
@@ -23,39 +24,18 @@ interface RouteReplayMapProps {
   locations: LocationPoint[]
   vehicleName: string
   vehicleColor: string
+  vehicleIcon?: string | null
   isLoading: boolean
   route?: [number, number][] | null
 }
 
 const SPEEDS = [1, 2, 5, 10] as const
 
-function createAnimatedMarker(color: string) {
-  const el = document.createElement("div")
-  el.innerHTML = `
-    <div style="
-      width: 28px; height: 28px;
-      position: relative;
-      filter: drop-shadow(0 2px 8px rgba(0,0,0,0.5));
-    ">
-      <svg viewBox="0 0 24 24" width="100%" height="100%">
-        <path d="M6 5Q6 3 9 3L15 3Q18 3 18 5L18 19Q18 21 15 21L9 21Q6 21 6 19Z" fill="${color}"/>
-        <path d="M8 7L16 7Q17 7 17 8L17 11L7 11L7 8Q7 7 8 7Z" fill="rgba(0,0,0,0.15)"/>
-      </svg>
-      <div style="
-        position:absolute;top:-3px;right:-3px;
-        width:10px;height:10px;border-radius:50%;
-        background:#22c55e;
-        box-shadow:0 0 8px rgba(34,197,94,0.8);
-      "></div>
-    </div>
-  `
-  return el
-}
-
 export function RouteReplayMap({
   locations,
   vehicleName,
   vehicleColor,
+  vehicleIcon,
   isLoading,
   route,
 }: RouteReplayMapProps) {
@@ -65,15 +45,47 @@ export function RouteReplayMap({
   const animRef = useRef<number | null>(null)
   const polylineRef = useRef<L.Polyline | null>(null)
   const routingControlRef = useRef<any>(null)
+  const projectedRef = useRef<[number, number][]>([])
   const [playing, setPlaying] = useState(false)
   const [speed, setSpeed] = useState<number>(2)
   const [progress, setProgress] = useState(0)
   const [currentIdx, setCurrentIdx] = useState(0)
   const progressRef = useRef(0)
   const currentIdxRef = useRef(0)
-  const hasDrawn = useRef(false)
 
   const totalPoints = locations.length
+  const lastHeadingRef = useRef(0)
+
+  function lerpAngle(a: number, b: number, t: number): number {
+    let diff = b - a
+    if (diff > 180) diff -= 360
+    if (diff < -180) diff += 360
+    return a + diff * t
+  }
+
+  function applyHeading(deg: number) {
+    const markerEl = markerRef.current?.getElement()
+    const rotateEl = markerEl?.querySelector(".marker-rotate") as HTMLElement | null
+    if (rotateEl) {
+      rotateEl.style.transform = `rotate(${deg}deg)`
+    }
+    lastHeadingRef.current = deg
+  }
+
+  function findNearestOnRoute(lat: number, lng: number, coords: [number, number][]): [number, number] {
+    let minDist = Infinity
+    let closest: [number, number] = [lat, lng]
+    for (const [rlng, rlat] of coords) {
+      const dx = rlat - lat
+      const dy = rlng - lng
+      const d = dx * dx + dy * dy
+      if (d < minDist) {
+        minDist = d
+        closest = [rlat, rlng]
+      }
+    }
+    return closest
+  }
 
   function drawRoute() {
     const map = mapRef.current
@@ -87,12 +99,16 @@ export function RouteReplayMap({
       markerRef.current.remove()
       markerRef.current = null
     }
+    if (routingControlRef.current) {
+      try { map.removeControl(routingControlRef.current) } catch {}
+      routingControlRef.current = null
+    }
 
-    const coords = route
+    const routeCoords = route
       ? route.map(([lng, lat]) => [lat, lng] as [number, number])
       : locations.map((l) => [l.lat, l.lng] as [number, number])
 
-    polylineRef.current = L.polyline(coords, {
+    polylineRef.current = L.polyline(routeCoords, {
       color: "#3b82f6",
       weight: 4,
       opacity: 0.85,
@@ -100,18 +116,28 @@ export function RouteReplayMap({
 
     map.fitBounds(polylineRef.current.getBounds(), { padding: [60, 60], maxZoom: 15 })
 
+    projectedRef.current = route
+      ? locations.map((l) => findNearestOnRoute(l.lat, l.lng, route))
+      : locations.map((l) => [l.lat, l.lng] as [number, number])
+
+    const initialHeading = locations[0]?.heading
+    const markerHtml = createMarkerHtml({
+      id: "replay",
+      name: vehicleName,
+      color: vehicleColor,
+      icon: vehicleIcon,
+      online: false,
+    }, false, initialHeading)
+
     const icon = L.divIcon({
       className: "",
-      html: createAnimatedMarker(vehicleColor).outerHTML,
-      iconSize: [28, 28],
-      iconAnchor: [14, 14],
+      html: markerHtml,
+      iconSize: [36, 36],
+      iconAnchor: [18, 18],
     })
-    markerRef.current = L.marker([locations[0].lat, locations[0].lng], { icon }).addTo(map)
-
-    if (routingControlRef.current) {
-      try { map.removeControl(routingControlRef.current) } catch {}
-      routingControlRef.current = null
-    }
+    markerRef.current = L.marker(locations.length > 0
+      ? [projectedRef.current[0][0], projectedRef.current[0][1]]
+      : [0, 0], { icon }).addTo(map)
 
     try {
       const waypoints = locations.slice(0, 20).map((l) => L.latLng(l.lat, l.lng))
@@ -158,7 +184,6 @@ export function RouteReplayMap({
       markerRef.current = null
       polylineRef.current = null
       routingControlRef.current = null
-      hasDrawn.current = false
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -168,7 +193,7 @@ export function RouteReplayMap({
     mapRef.current.invalidateSize()
     drawRoute()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [locations, route, vehicleColor])
+  }, [locations, route, vehicleColor, vehicleIcon])
 
   const stopAnimation = useCallback(() => {
     if (animRef.current) {
@@ -204,10 +229,18 @@ export function RouteReplayMap({
       const rawT = Math.min(elapsed / duration, 1)
       const easedT = easeInOutQuad(rawT)
 
-      const lat = current.lat + (next.lat - current.lat) * easedT
-      const lng = current.lng + (next.lng - current.lng) * easedT
+      const proj = projectedRef.current
+      const from = proj[idx] ?? [current.lat, current.lng]
+      const to = proj[Math.min(idx + 1, proj.length - 1)] ?? [next.lat, next.lng]
+      const lat = from[0] + (to[0] - from[0]) * easedT
+      const lng = from[1] + (to[1] - from[1]) * easedT
 
       markerRef.current?.setLatLng([lat, lng])
+
+      const fromHeading = current.heading ?? lastHeadingRef.current
+      const toHeading = next.heading ?? fromHeading
+      const heading = lerpAngle(fromHeading, toHeading, easedT)
+      applyHeading(heading)
 
       const globalProgress = (idx + rawT) / (locations.length - 1)
       progressRef.current = globalProgress
@@ -244,8 +277,10 @@ export function RouteReplayMap({
         setCurrentIdx(0)
         progressRef.current = 0
         setProgress(0)
-        if (locations.length > 0 && markerRef.current) {
-          markerRef.current.setLatLng([locations[0].lat, locations[0].lng])
+        const proj = projectedRef.current
+        if (proj.length > 0 && markerRef.current) {
+          markerRef.current.setLatLng([proj[0][0], proj[0][1]])
+          applyHeading(locations[0]?.heading ?? 0)
         }
       }
       setPlaying(true)
@@ -258,8 +293,10 @@ export function RouteReplayMap({
     currentIdxRef.current = newIdx
     setCurrentIdx(newIdx)
     setProgress(newIdx / (locations.length - 1))
-    if (locations[newIdx]) {
-      markerRef.current?.setLatLng([locations[newIdx].lat, locations[newIdx].lng])
+    const proj = projectedRef.current
+    if (proj[newIdx] && markerRef.current) {
+      markerRef.current.setLatLng([proj[newIdx][0], proj[newIdx][1]])
+      applyHeading(locations[newIdx]?.heading ?? lastHeadingRef.current)
     }
   }
 
@@ -271,12 +308,14 @@ export function RouteReplayMap({
     currentIdxRef.current = clamped
     setCurrentIdx(clamped)
     setProgress(clamped / (locations.length - 1))
-    if (locations[clamped]) {
-      markerRef.current?.setLatLng([locations[clamped].lat, locations[clamped].lng])
+    const proj = projectedRef.current
+    if (proj[clamped] && markerRef.current) {
+      markerRef.current.setLatLng([proj[clamped][0], proj[clamped][1]])
       const map = mapRef.current
       if (map) {
-        map.flyTo([locations[clamped].lat, locations[clamped].lng], 14, { duration: 0.4 })
+        map.flyTo([proj[clamped][0], proj[clamped][1]], 14, { duration: 0.4 })
       }
+      applyHeading(locations[clamped]?.heading ?? lastHeadingRef.current)
     }
   }
 
