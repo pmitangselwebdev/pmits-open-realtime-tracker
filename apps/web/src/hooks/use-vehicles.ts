@@ -30,10 +30,8 @@ export function useVehicles(): UseVehiclesReturn {
   } = useQuery({
     queryKey: ["vehicles"],
     queryFn: fetchVehicles,
-    staleTime: 5 * 1000,
-    refetchInterval: 5_000,
-    retry: 1,
-    retryDelay: 1000,
+    staleTime: 10 * 1000,
+    refetchOnWindowFocus: true,
   })
 
   const handleLocation = useCallback(

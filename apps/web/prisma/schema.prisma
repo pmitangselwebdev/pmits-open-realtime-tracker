@@ -44,7 +44,7 @@ model Vehicle {
 model Location {
   id        String   @id @default(cuid())
   vehicleId String
-  vehicle   Vehicle  @relation(fields: [vehicleId], references: [id])
+  vehicle   Vehicle  @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
   lat       Float
   lng       Float
   speed     Float?
@@ -77,9 +77,9 @@ model Event {
   userId     String
   user       User      @relation(fields: [userId], references: [id])
   vehicleId  String?
-  vehicle    Vehicle?  @relation(fields: [vehicleId], references: [id])
+  vehicle    Vehicle?  @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
   geofenceId String?
-  geofence   Geofence? @relation(fields: [geofenceId], references: [id])
+  geofence   Geofence? @relation(fields: [geofenceId], references: [id], onDelete: SetNull)
   type       String
   message    String
   attributes Json?
@@ -92,7 +92,7 @@ model Event {
 model Trip {
   id        String   @id @default(cuid())
   vehicleId String
-  vehicle   Vehicle  @relation(fields: [vehicleId], references: [id])
+  vehicle   Vehicle  @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
   startTime DateTime
   endTime   DateTime
   startLat  Float
@@ -110,7 +110,7 @@ model Trip {
 model Stop {
   id        String   @id @default(cuid())
   vehicleId String
-  vehicle   Vehicle  @relation(fields: [vehicleId], references: [id])
+  vehicle   Vehicle  @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
   startTime DateTime
   endTime   DateTime
   lat       Float
@@ -126,7 +126,7 @@ model Maintenance {
   userId    String
   user      User     @relation(fields: [userId], references: [id])
   vehicleId String
-  vehicle   Vehicle  @relation(fields: [vehicleId], references: [id])
+  vehicle   Vehicle  @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
   type      String   @default("general")
   label     String
   periodKm  Float?
