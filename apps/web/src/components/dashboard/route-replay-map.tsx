@@ -65,13 +65,13 @@ export function RouteReplayMap({
   const animRef = useRef<number | null>(null)
   const polylineRef = useRef<L.Polyline | null>(null)
   const routingControlRef = useRef<any>(null)
-  const tileLayerRef = useRef<L.TileLayer | null>(null)
   const [playing, setPlaying] = useState(false)
   const [speed, setSpeed] = useState<number>(2)
   const [progress, setProgress] = useState(0)
   const [currentIdx, setCurrentIdx] = useState(0)
   const progressRef = useRef(0)
   const currentIdxRef = useRef(0)
+  const hasDrawn = useRef(false)
 
   const totalPoints = locations.length
 
@@ -141,7 +141,7 @@ export function RouteReplayMap({
     })
 
     const initialStyle = getMapStyle("street")
-    tileLayerRef.current = L.tileLayer(initialStyle.url, {
+    L.tileLayer(initialStyle.url, {
       attribution: initialStyle.attribution,
       maxZoom: 19,
     }).addTo(map)
@@ -153,18 +153,19 @@ export function RouteReplayMap({
 
     return () => {
       if (animRef.current) cancelAnimationFrame(animRef.current)
-      tileLayerRef.current = null
       try { map.remove() } catch {}
       mapRef.current = null
       markerRef.current = null
       polylineRef.current = null
       routingControlRef.current = null
+      hasDrawn.current = false
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   useEffect(() => {
     if (!mapRef.current || locations.length === 0) return
+    mapRef.current.invalidateSize()
     drawRoute()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [locations, route, vehicleColor])
@@ -280,28 +281,23 @@ export function RouteReplayMap({
   }
 
   const currentLoc = locations[currentIdx]
-
-  if (isLoading) {
-    return (
-      <div className="h-full rounded-xl bg-muted animate-pulse flex items-center justify-center">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-      </div>
-    )
-  }
-
-  if (locations.length === 0) {
-    return (
-      <div className="h-full rounded-xl bg-muted flex items-center justify-center">
-        <p className="text-muted-foreground">No location data for this period</p>
-      </div>
-    )
-  }
-
   const pct = Math.round(progress * 100)
 
   return (
     <div className="h-full w-full relative rounded-xl overflow-hidden border border-border/50">
-      <div ref={mapContainer} className="h-full w-full z-0" />
+      <div ref={mapContainer} className="h-full w-full absolute inset-0 z-0" />
+
+      {isLoading && (
+        <div className="absolute inset-0 z-10 bg-muted/80 flex items-center justify-center">
+          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        </div>
+      )}
+
+      {!isLoading && locations.length === 0 && (
+        <div className="absolute inset-0 z-10 bg-muted/80 flex items-center justify-center">
+          <p className="text-muted-foreground">No location data for this period</p>
+        </div>
+      )}
 
       <div className="absolute top-3 left-3 z-[1000] flex items-start gap-2 pointer-events-none">
         <Card className="px-3 py-1.5 bg-background/90 backdrop-blur-sm pointer-events-auto">
