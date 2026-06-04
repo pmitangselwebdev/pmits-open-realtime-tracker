@@ -59,7 +59,7 @@ export function createMarkerHtml(
     transition:transform 0.15s;
     transform:${isSelected ? "scale(1.2)" : "scale(1)"};
   ">
-    <div class="marker-rotate" style="transform:rotate(${deg}deg);transition:transform 0.1s linear;">${emoji}</div>
+    <div class="marker-rotate" style="transform:rotate(${deg}deg)">${emoji}</div>
     ${onlineDot}
   </div>`
 }

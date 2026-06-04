@@ -104,7 +104,8 @@ export function RouteReplayMap({
       routingControlRef.current = null
     }
 
-    const routeCoords = route
+    const hasRoute = route && route.length > 0
+    const routeCoords = hasRoute
       ? route.map(([lng, lat]) => [lat, lng] as [number, number])
       : locations.map((l) => [l.lat, l.lng] as [number, number])
 
@@ -116,8 +117,8 @@ export function RouteReplayMap({
 
     map.fitBounds(polylineRef.current.getBounds(), { padding: [60, 60], maxZoom: 15 })
 
-    projectedRef.current = route
-      ? locations.map((l) => findNearestOnRoute(l.lat, l.lng, route))
+    projectedRef.current = hasRoute
+      ? locations.map((l) => findNearestOnRoute(l.lat, l.lng, route!))
       : locations.map((l) => [l.lat, l.lng] as [number, number])
 
     const proj = projectedRef.current
