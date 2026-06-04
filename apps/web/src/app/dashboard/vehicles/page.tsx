@@ -10,7 +10,7 @@ import { VehicleDialog } from "@/components/dashboard/vehicle-dialog"
 import { StatusBadge } from "@/components/dashboard/status-badge"
 import { Truck, Search, Pencil } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { getVehicleType } from "@/lib/vehicle-markers"
+import { getVehicleType, VEHICLE_EMOJI } from "@/lib/vehicle-markers"
 
 export default function VehiclesPage() {
   const { vehicles, isLoading } = useVehicles()
@@ -142,17 +142,7 @@ export default function VehiclesPage() {
                       backgroundColor: (vehicle.color ?? "#dc2626") + "20",
                     }}
                   >
-                    <span className="text-lg" title={vehicle.icon ?? ""}>
-                      {getVehicleType(vehicle.name, vehicle.icon) === "ambulance" ? "🚑" :
-                       getVehicleType(vehicle.name, vehicle.icon) === "rescue" ? "🚙" :
-                       getVehicleType(vehicle.name, vehicle.icon) === "tanker" ? "🚚" :
-                       getVehicleType(vehicle.name, vehicle.icon) === "command" ? "📡" :
-                       getVehicleType(vehicle.name, vehicle.icon) === "truck" ? "📦" :
-                       getVehicleType(vehicle.name, vehicle.icon) === "van" ? "🚐" :
-                       getVehicleType(vehicle.name, vehicle.icon) === "suv" ? "🛻" :
-                       getVehicleType(vehicle.name, vehicle.icon) === "pickup" ? "🚛" :
-                       getVehicleType(vehicle.name, vehicle.icon) === "motor" ? "🏍️" : "🚗"}
-                    </span>
+                    <span className="text-lg">{VEHICLE_EMOJI[getVehicleType(vehicle.name, vehicle.icon)] ?? "🚗"}</span>
                   </div>
 
                   <div className="flex-1 min-w-0 grid grid-cols-1 sm:grid-cols-3 gap-1 sm:gap-4">

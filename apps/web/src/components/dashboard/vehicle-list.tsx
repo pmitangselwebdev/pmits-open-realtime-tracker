@@ -1,11 +1,10 @@
 "use client"
 
 import { motion } from "framer-motion"
-import { useVehicles } from "@/hooks/use-vehicles"
 import { StatusBadge } from "./status-badge"
 import { useDashboardStore } from "@/stores/dashboard-store"
 import { cn } from "@/lib/utils"
-import { getVehicleType } from "@/lib/vehicle-markers"
+import { getVehicleType, VEHICLE_EMOJI } from "@/lib/vehicle-markers"
 import type { VehicleWithStatus } from "shared"
 
 interface VehicleListProps {
@@ -71,17 +70,7 @@ export function VehicleList({ vehicles, isLoading }: VehicleListProps) {
             className="h-10 w-10 rounded-lg flex items-center justify-center"
             style={{ backgroundColor: (vehicle.color ?? "#dc2626") + "20" }}
           >
-            <span className="text-lg">
-              {getVehicleType(vehicle.name, vehicle.icon) === "ambulance" ? "🚑" :
-               getVehicleType(vehicle.name, vehicle.icon) === "rescue" ? "🚙" :
-               getVehicleType(vehicle.name, vehicle.icon) === "tanker" ? "🚚" :
-               getVehicleType(vehicle.name, vehicle.icon) === "command" ? "📡" :
-               getVehicleType(vehicle.name, vehicle.icon) === "truck" ? "📦" :
-               getVehicleType(vehicle.name, vehicle.icon) === "van" ? "🚐" :
-               getVehicleType(vehicle.name, vehicle.icon) === "suv" ? "🛻" :
-               getVehicleType(vehicle.name, vehicle.icon) === "pickup" ? "🚛" :
-               getVehicleType(vehicle.name, vehicle.icon) === "motor" ? "🏍️" : "🚗"}
-            </span>
+            <span className="text-lg">{VEHICLE_EMOJI[getVehicleType(vehicle.name, vehicle.icon)] ?? "🚗"}</span>
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">

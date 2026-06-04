@@ -5,15 +5,16 @@ import { motion, AnimatePresence } from "framer-motion"
 import { Button } from "@/components/ui/button"
 import { StatusBadge } from "./status-badge"
 import { useDashboardStore } from "@/stores/dashboard-store"
-import type { VehicleWithStatus } from "shared"
-import { getVehicleType } from "@/lib/vehicle-markers"
+import { useVehicles } from "@/hooks/use-vehicles"
+import { getVehicleType, VEHICLE_EMOJI } from "@/lib/vehicle-markers"
 
-interface VehicleDetailPanelProps {
-  vehicle: VehicleWithStatus | null
-}
-
-export function VehicleDetailPanel({ vehicle }: VehicleDetailPanelProps) {
-  const { vehicleDetailOpen, setVehicleDetailOpen } = useDashboardStore()
+export function VehicleDetailPanel() {
+  const { selectedVehicleId, vehicleDetailOpen, setVehicleDetailOpen } =
+    useDashboardStore()
+  const { vehicles } = useVehicles()
+  const vehicle = selectedVehicleId
+    ? vehicles.find((v) => v.id === selectedVehicleId) ?? null
+    : null
 
   return (
     <AnimatePresence>
@@ -34,17 +35,7 @@ export function VehicleDetailPanel({ vehicle }: VehicleDetailPanelProps) {
                     backgroundColor: (vehicle.color ?? "#dc2626") + "20",
                   }}
                 >
-                  <span className="text-lg">
-                    {getVehicleType(vehicle.name, vehicle.icon) === "ambulance" ? "🚑" :
-                     getVehicleType(vehicle.name, vehicle.icon) === "rescue" ? "🚙" :
-                     getVehicleType(vehicle.name, vehicle.icon) === "tanker" ? "🚚" :
-                     getVehicleType(vehicle.name, vehicle.icon) === "command" ? "📡" :
-                     getVehicleType(vehicle.name, vehicle.icon) === "truck" ? "📦" :
-                     getVehicleType(vehicle.name, vehicle.icon) === "van" ? "🚐" :
-                     getVehicleType(vehicle.name, vehicle.icon) === "suv" ? "🛻" :
-                     getVehicleType(vehicle.name, vehicle.icon) === "pickup" ? "🚛" :
-                     getVehicleType(vehicle.name, vehicle.icon) === "motor" ? "🏍️" : "🚗"}
-                  </span>
+                  <span className="text-lg">{VEHICLE_EMOJI[getVehicleType(vehicle.name, vehicle.icon)] ?? "🚗"}</span>
                 </div>
                 <div>
                   <h2 className="font-semibold">{vehicle.name}</h2>

@@ -98,13 +98,6 @@ export function MapView({
     }
   }
 
-  function setHeading(vehicleId: string, heading: number) {
-    const marker = markersRef.current.get(vehicleId)
-    if (!marker) return
-    const svg = marker.getElement().querySelector("svg")
-    if (svg) svg.style.transform = `rotate(${heading}deg)`
-  }
-
   const diffMarkers = useCallback(() => {
     const map = mapRef.current
     if (!map) return
@@ -127,9 +120,6 @@ export function MapView({
       const existing = markersRef.current.get(vehicle.id)
       if (existing) {
         const currentPos = existing.getLngLat()
-        const newHeading = loc.heading ?? 0
-
-        setHeading(vehicle.id, newHeading)
 
         if (currentPos.lat !== loc.lat || currentPos.lng !== loc.lng) {
           startAnim(
@@ -168,7 +158,6 @@ export function MapView({
           .addTo(map)
 
         markersRef.current.set(vehicle.id, marker)
-        setHeading(vehicle.id, loc.heading ?? 0)
       }
     })
   }, [vehicles, selectedVehicleId, onVehicleClick])

@@ -5,22 +5,13 @@ import { motion, AnimatePresence } from "framer-motion"
 import { Sidebar } from "@/components/dashboard/sidebar"
 import { Navbar } from "@/components/dashboard/navbar"
 import { VehicleDetailPanel } from "@/components/dashboard/vehicle-detail-panel"
-import { useDashboardStore } from "@/stores/dashboard-store"
-import { useVehicles } from "@/hooks/use-vehicles"
 
 export default function DashboardLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
-  const { sidebarOpen } = useDashboardStore()
-  const { vehicles } = useVehicles()
   const pathname = usePathname()
-  const { selectedVehicleId } = useDashboardStore()
-
-  const selectedVehicle = selectedVehicleId
-    ? vehicles.find((v) => v.id === selectedVehicleId) ?? null
-    : null
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -46,7 +37,7 @@ export default function DashboardLayout({
           </AnimatePresence>
         </div>
       </main>
-      <VehicleDetailPanel vehicle={selectedVehicle} />
+      <VehicleDetailPanel />
     </div>
   )
 }
