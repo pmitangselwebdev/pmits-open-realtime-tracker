@@ -5,7 +5,7 @@ import { supabase } from "@/lib/supabase"
 import { locationSchema, deviceLocationSchema } from "shared"
 import { ZodError } from "zod"
 import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit"
-import { calculateDistance, smoothRoute } from "@/lib/geo"
+import { calculateDistance } from "@/lib/geo"
 import { matchRoute } from "@/lib/map-match"
 import { checkGeofence, generateEventMessage } from "@/lib/geofence"
 
@@ -238,7 +238,7 @@ export async function GET(req: Request) {
 
     const hasMore = locations.length === limit
 
-    let route: [number, number][]
+    let route: [number, number][] = []
     let distance = 0
 
     if (replay && locations.length > 1) {
@@ -249,10 +249,8 @@ export async function GET(req: Request) {
         distance = matched.distance
       } else {
         distance = calculateDistance(coords)
-        route = smoothRoute(coords, 12)
+        route = coords
       }
-    } else {
-      route = []
     }
 
     return Response.json({ locations, hasMore, route, distance })
